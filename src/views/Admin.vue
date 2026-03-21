@@ -23,7 +23,7 @@ const showLocationDialog = ref(false);
 const showLookupDialog = ref(false);
 const showUserDialog = ref(false);
 const refOrgForm = ref({ id: null, name: "", caseWorkerName: "", phone: "", referringOrganizationTypeId: null });
-const orgForm = ref({ id: null, name: "", contactName: "", phoneNumber: "", street: "", city: "", state: "", zip: "" });
+const orgForm = ref({ id: null, name: "", contactName: "", phoneNumber: "", street: "", city: "", state: "", zip: "", logoUrl: null });
 const locationForm = ref({ id: null, organizationId: null, name: "", address: "", contactName: "", phoneNumber: "" });
 const lookupForm = ref({ id: null, type: "housing_location", value: "", sortOrder: 0, status: "Active" });
 const userForm = ref({ id: null, fName: "", lName: "", email: "", username: "", password: "", organizationId: null, role: "worker" });
@@ -200,14 +200,64 @@ const deleteRefOrg = (org) => {
     .catch((e) => (message.value = e.response?.data?.message || "Error deleting"));
 };
 
+const orgLogoUploading = ref(false);
+const orgLogoError = ref("");
+const orgLogoFile = ref(null);
+
 const openAddOrg = () => {
-  orgForm.value = { id: null, name: "", contactName: "", phoneNumber: "", street: "", city: "", state: "", zip: "" };
+  orgForm.value = { id: null, name: "", contactName: "", phoneNumber: "", street: "", city: "", state: "", zip: "", logoUrl: null };
+  orgLogoError.value = "";
   showOrgDialog.value = true;
 };
 
 const openEditOrg = (org) => {
-  orgForm.value = { ...org };
+  orgForm.value = { ...org, logoUrl: org.logoUrl || null };
+  orgLogoError.value = "";
   showOrgDialog.value = true;
+};
+
+const onOrgLogoSelected = (fileOrFiles) => {
+  const file = Array.isArray(fileOrFiles) ? fileOrFiles[0] : fileOrFiles;
+  if (!file || !orgForm.value.id) return;
+  if (!file.type?.startsWith("image/")) {
+    orgLogoError.value = "Please select an image file (PNG, JPEG, or GIF).";
+    return;
+  }
+  if (file.size > 2 * 1024 * 1024) {
+    orgLogoError.value = "Image must be 2MB or smaller.";
+    return;
+  }
+  orgLogoError.value = "";
+  orgLogoUploading.value = true;
+  OrganizationServices.uploadLogo(orgForm.value.id, file)
+    .then((res) => {
+      orgForm.value.logoUrl = res.data?.logoUrl ?? res.data;
+      loadOrganizations();
+    })
+    .catch((e) => {
+      orgLogoError.value = e.response?.data?.message || "Upload failed.";
+    })
+    .finally(() => {
+      orgLogoUploading.value = false;
+      orgLogoFile.value = null;
+    });
+};
+
+const removeOrgLogo = () => {
+  if (!orgForm.value.id || !orgForm.value.logoUrl) return;
+  orgLogoError.value = "";
+  orgLogoUploading.value = true;
+  OrganizationServices.removeLogo(orgForm.value.id)
+    .then(() => {
+      orgForm.value.logoUrl = null;
+      loadOrganizations();
+    })
+    .catch((e) => {
+      orgLogoError.value = e.response?.data?.message || "Failed to remove logo.";
+    })
+    .finally(() => {
+      orgLogoUploading.value = false;
+    });
 };
 
 const saveOrg = () => {
@@ -658,6 +708,47 @@ onMounted(() => {
       <v-card>
         <v-card-title>{{ orgForm.id ? "Edit" : "Add" }} Organization</v-card-title>
         <v-card-text>
+          <template v-if="orgForm.id">
+            <div class="mb-4">
+              <div class="text-caption mb-2">Logo</div>
+              <div v-if="orgForm.logoUrl" class="d-flex align-center ga-3">
+                <img
+                  :src="OrganizationServices.getLogoUrl(orgForm.logoUrl)"
+                  alt="Organization logo"
+                  style="max-height: 80px; max-width: 120px; object-fit: contain"
+                />
+                <v-btn variant="text" color="error" size="small" :disabled="orgLogoUploading" @click="removeOrgLogo">Remove</v-btn>
+              </div>
+              <v-file-input
+                v-else
+                v-model="orgLogoFile"
+                label="Upload logo"
+                prepend-icon=""
+                prepend-inner-icon="mdi-camera"
+                accept="image/png, image/jpeg, image/jpg, image/gif"
+                density="compact"
+                hide-details
+                :loading="orgLogoUploading"
+                :disabled="orgLogoUploading"
+                @update:model-value="onOrgLogoSelected"
+              />
+              <v-file-input
+                v-if="orgForm.logoUrl"
+                v-model="orgLogoFile"
+                label="Replace logo"
+                prepend-icon=""
+                prepend-inner-icon="mdi-camera"
+                accept="image/png, image/jpeg, image/jpg, image/gif"
+                density="compact"
+                hide-details
+                class="mt-2"
+                :loading="orgLogoUploading"
+                :disabled="orgLogoUploading"
+                @update:model-value="onOrgLogoSelected"
+              />
+              <v-alert v-if="orgLogoError" type="error" density="compact" class="mt-2">{{ orgLogoError }}</v-alert>
+            </div>
+          </template>
           <v-text-field v-model="orgForm.name" label="Organization Name" />
           <v-text-field v-model="orgForm.contactName" label="Contact Name" />
           <v-text-field v-model="orgForm.phoneNumber" label="Phone Number" />

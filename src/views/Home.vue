@@ -3,13 +3,16 @@ import { ref, computed, onMounted, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
 import Utils from "../config/utils.js";
 import LocationServices from "../services/locationServices.js";
+import OrganizationServices from "../services/organizationServices.js";
 
 const router = useRouter();
 const user = ref(Utils.getStore("user"));
 const nowDisplay = ref("");
+const orgLogoUrl = ref(null);
 
 const refreshUser = () => {
   user.value = Utils.getStore("user");
+  loadOrgLogo();
 };
 
 const formatNow = () => {
@@ -43,6 +46,27 @@ const loadLocationName = async () => {
   }
 };
 
+const loadOrgLogo = () => {
+  const orgId = user.value?.organizationId ?? user.value?.organization?.id;
+  if (orgId) {
+    OrganizationServices.get(orgId)
+      .then((r) => {
+        const url = r.data?.logoUrl;
+        orgLogoUrl.value = url ? OrganizationServices.getLogoUrl(url) : null;
+      })
+      .catch(() => {});
+  } else {
+    OrganizationServices.getAll()
+      .then((r) => {
+        const orgs = r.data || [];
+        const first = orgs[0];
+        const url = first?.logoUrl;
+        orgLogoUrl.value = url ? OrganizationServices.getLogoUrl(url) : null;
+      })
+      .catch(() => {});
+  }
+};
+
 const actions = [
   { name: "addClient", label: "Add Client", icon: "mdi-account-plus", color: "success", subtitle: "Register a new client" },
   { name: "addEncounter", label: "Add Encounter", icon: "mdi-hand-heart", color: "secondary", subtitle: "Record services requested or provided" },
@@ -56,6 +80,7 @@ onMounted(() => {
   nowInterval = setInterval(() => { nowDisplay.value = formatNow(); }, 1000);
   window.addEventListener("user-updated", refreshUser);
   loadLocationName();
+  loadOrgLogo();
 });
 onUnmounted(() => {
   if (nowInterval) clearInterval(nowInterval);
@@ -69,6 +94,13 @@ onUnmounted(() => {
       <v-row justify="center" align="center">
         <v-col cols="12" class="text-center mb-8">
           <h1 class="text-h3 font-weight-bold mb-2">{{ greeting }}</h1>
+          <div v-if="orgLogoUrl" class="d-flex justify-center mb-4">
+            <img
+              :src="orgLogoUrl"
+              alt="Organization logo"
+              style="max-height: 160px; max-width: 400px; object-fit: contain"
+            />
+          </div>
           <p v-if="locationDisplay" class="text-h5 text-medium-emphasis mb-1">You are serving at {{ locationDisplay }} today.</p>
           <p v-if="!hasNoAccess" class="text-h5 text-medium-emphasis">What would you like to do?</p>
         </v-col>

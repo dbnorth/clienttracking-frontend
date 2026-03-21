@@ -9,6 +9,7 @@ import { useRouter } from "vue-router";
 const router = useRouter();
 const user = ref(null);
 const title = ref("Client Tracking");
+const orgLogoUrl = ref(null);
 const initials = ref("");
 const name = ref("");
 const showUserUpdateDialog = ref(false);
@@ -92,8 +93,12 @@ const saveUserUpdate = () => {
 const loadTitle = () => {
   OrganizationServices.getAll()
     .then((r) => {
-      const org = r.data?.[0];
+      const orgs = r.data || [];
+      const org = orgs[0];
       title.value = org?.name || "Client Tracking";
+      const userOrgId = user.value?.organizationId ?? user.value?.organization?.id;
+      const userOrg = userOrgId ? orgs.find((o) => o.id === userOrgId) : org;
+      orgLogoUrl.value = userOrg?.logoUrl ? OrganizationServices.getLogoUrl(userOrg.logoUrl) : null;
     })
     .catch(() => {});
 };
@@ -110,11 +115,21 @@ onMounted(() => {
   resetMenu();
   loadTitle();
 });
+
+watch(user, () => loadTitle(), { deep: true });
 </script>
 
 <template>
   <div>
     <v-app-bar app>
+      <router-link
+        v-if="user && orgLogoUrl"
+        :to="{ name: 'home' }"
+        class="d-flex align-center mr-3"
+        style="text-decoration: none"
+      >
+        <img :src="orgLogoUrl" alt="Organization logo" style="max-height: 40px; max-width: 120px; object-fit: contain" />
+      </router-link>
       <v-toolbar-title class="title ml-2 font-weight-bold">{{ title }}</v-toolbar-title>
       <v-spacer></v-spacer>
       <div v-if="user">

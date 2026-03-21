@@ -1,35 +1,23 @@
 <script setup>
-import { ref, onMounted, computed } from "vue";
+import { ref, computed, watch } from "vue";
 import AuthServices from "../services/authServices";
 import LocationServices from "../services/locationServices";
+import OrganizationServices from "../services/organizationServices";
 import Utils from "../config/utils.js";
 import { useRouter } from "vue-router";
 
 const router = useRouter();
-const organizations = ref([]);
 const locations = ref([]);
 const selectedLocationId = ref(null);
 const showLocationDialog = ref(false);
 const loginResponse = ref(null);
+const locationDialogOrg = ref(null);
 
 const username = ref("");
 const password = ref("");
 const loginError = ref("");
 const successMessage = ref("");
 const loading = ref(false);
-
-const showAddUser = ref(false);
-const registerLoading = ref(false);
-const registerMessage = ref("");
-const newUser = ref({
-  fName: "",
-  lName: "",
-  email: "",
-  username: "",
-  password: "",
-  confirmPassword: "",
-  organizationId: null,
-});
 
 const login = () => {
   loginError.value = "";
@@ -83,135 +71,84 @@ const locationsWithLabel = computed(() =>
   }))
 );
 
-const loadOrganizations = () => {
-  AuthServices.getOrganizationsForRegistration()
-    .then((r) => (organizations.value = r.data))
-    .catch(() => (organizations.value = []));
-};
-
-const openAddUser = () => {
-  registerMessage.value = "";
-  newUser.value = {
-    fName: "",
-    lName: "",
-    email: "",
-    username: "",
-    password: "",
-    confirmPassword: "",
-    organizationId: null,
-  };
-  showAddUser.value = true;
-};
-
-const register = () => {
-  registerMessage.value = "";
-  const u = newUser.value;
-  if (!u.fName?.trim() || !u.lName?.trim() || !u.email?.trim() || !u.username?.trim() || !u.password) {
-    registerMessage.value = "All fields are required.";
-    return;
+watch(showLocationDialog, (open) => {
+  if (open) {
+    locationDialogOrg.value = null;
+    const orgId = loginResponse.value?.organizationId ?? loginResponse.value?.organization?.id;
+    if (orgId) {
+      OrganizationServices.get(orgId)
+        .then((r) => (locationDialogOrg.value = r.data))
+        .catch(() => {});
+    } else {
+      OrganizationServices.getAll()
+        .then((r) => {
+          const orgs = r.data || [];
+          locationDialogOrg.value = orgs[0] || null;
+        })
+        .catch(() => {});
+    }
   }
-  if (u.password !== u.confirmPassword) {
-    registerMessage.value = "Passwords do not match.";
-    return;
-  }
-  if (u.password.length < 8) {
-    registerMessage.value = "Password must be at least 8 characters.";
-    return;
-  }
-  registerLoading.value = true;
-  AuthServices.registerUser({
-    fName: u.fName.trim(),
-    lName: u.lName.trim(),
-    email: u.email.trim(),
-    username: u.username.trim(),
-    password: u.password,
-    organizationId: u.organizationId || null,
-  })
-    .then(() => {
-      showAddUser.value = false;
-      successMessage.value = "Account created. You can sign in now.";
-      loginError.value = "";
-    })
-    .catch((e) => {
-      registerMessage.value = e.response?.data?.message || "Could not create user.";
-    })
-    .finally(() => {
-      registerLoading.value = false;
-    });
-};
+});
 
-onMounted(() => loadOrganizations());
+const welcomeOrgName = computed(
+  () => locationDialogOrg.value?.name || loginResponse.value?.organization?.name || null
+);
+const welcomeLogoUrl = computed(() => {
+  const url = locationDialogOrg.value?.logoUrl || loginResponse.value?.organization?.logoUrl;
+  return url ? OrganizationServices.getLogoUrl(url) : null;
+});
+
 </script>
 
 <template>
-  <v-container class="fill-height" style="max-width: 480px">
-    <v-toolbar>
-      <v-toolbar-title>Client Tracking</v-toolbar-title>
-    </v-toolbar>
-    <v-card class="mt-4 pa-4" elevation="2">
-      <v-card-title class="text-h6">Sign in</v-card-title>
-      <v-card-text>
-        <v-alert v-if="successMessage" type="success" density="compact" class="mb-3">{{ successMessage }}</v-alert>
-        <v-alert v-if="loginError" type="error" density="compact" class="mb-3">{{ loginError }}</v-alert>
+  <v-container class="fill-height" fluid>
+    <v-row justify="center">
+      <v-col cols="12" md="10" lg="8" class="d-flex flex-column align-center">
+        <v-sheet class="w-100" max-width="720">
+          <v-toolbar>
+            <v-toolbar-title>Client Tracking</v-toolbar-title>
+          </v-toolbar>
+          <v-card class="mt-4 pa-4" elevation="2">
+          <v-card-title class="text-h6">Sign in</v-card-title>
+          <v-card-text>
+            <v-row>
+              <v-col cols="12">
+            <v-alert v-if="successMessage" type="success" density="compact" class="mb-3">{{ successMessage }}</v-alert>
+            <v-alert v-if="loginError" type="error" density="compact" class="mb-3">{{ loginError }}</v-alert>
 
-        <v-text-field v-model="username" label="Username" autocomplete="username" density="comfortable" class="mb-2" />
-        <v-text-field
-          v-model="password"
-          label="Password"
-          type="password"
-          autocomplete="current-password"
-          density="comfortable"
-          @keyup.enter="login"
-        />
+            <v-text-field v-model="username" label="Username" autocomplete="username" density="comfortable" class="mb-2" />
+            <v-text-field
+              v-model="password"
+              label="Password"
+              type="password"
+              autocomplete="current-password"
+              density="comfortable"
+              @keyup.enter="login"
+            />
+          </v-col>
+        </v-row>
       </v-card-text>
-      <v-card-actions class="flex-wrap">
-        <v-btn color="primary" :loading="loading" @click="login">Sign in</v-btn>
-        <v-btn variant="text" @click="openAddUser">Add user</v-btn>
+      <v-card-actions class="justify-center">
+        <v-btn color="primary" variant="elevated" size="large" :loading="loading" @click="login">Sign in</v-btn>
       </v-card-actions>
-    </v-card>
+          </v-card>
+        </v-sheet>
+      </v-col>
+    </v-row>
 
-    <v-dialog v-model="showAddUser" max-width="520" persistent>
+    <v-dialog v-model="showLocationDialog" max-width="720" persistent>
       <v-card>
-        <v-card-title class="text-h6">Add user</v-card-title>
-        <v-card-text>
-          <v-alert v-if="registerMessage" type="error" density="compact" class="mb-3">{{ registerMessage }}</v-alert>
-          <v-select
-            v-model="newUser.organizationId"
-            :items="organizations"
-            item-title="name"
-            item-value="id"
-            label="Organization"
-            clearable
-            density="comfortable"
-          />
-          <v-text-field v-model="newUser.fName" label="First name" density="comfortable" />
-          <v-text-field v-model="newUser.lName" label="Last name" density="comfortable" />
-          <v-text-field v-model="newUser.email" label="Email" type="email" autocomplete="off" density="comfortable" />
-          <v-text-field v-model="newUser.username" label="Username" autocomplete="off" density="comfortable" />
-          <v-text-field
-            v-model="newUser.password"
-            label="Password"
-            type="password"
-            autocomplete="new-password"
-            density="comfortable"
-            hint="At least 8 characters"
-            persistent-hint
-          />
-          <v-text-field v-model="newUser.confirmPassword" label="Confirm password" type="password" density="comfortable" />
-        </v-card-text>
-        <v-card-actions>
-          <v-spacer />
-          <v-btn variant="text" @click="showAddUser = false">Cancel</v-btn>
-          <v-btn color="primary" :loading="registerLoading" @click="register">Create account</v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
-
-    <v-dialog v-model="showLocationDialog" max-width="480" persistent>
-      <v-card>
-        <v-card-title class="text-h6">Select your location</v-card-title>
-        <v-card-text>
-          <p class="text-caption mb-3">Choose your default intake location for adding new clients.</p>
+        <v-card-text class="pt-4">
+          <p class="text-h6 text-center mb-2">Welcome to Client Tracking{{ welcomeOrgName ? ` for ${welcomeOrgName}` : "" }}</p>
+          <div v-if="welcomeLogoUrl" class="d-flex justify-center align-center w-100 mb-4">
+            <img
+              :src="welcomeLogoUrl"
+              alt="Organization logo"
+              class="mx-auto"
+              style="max-height: 100px; max-width: 240px; object-fit: contain; display: block"
+            />
+          </div>
+          <p class="text-body-1 mb-3">Choose the location where you are working today.</p>
           <v-select
             v-model="selectedLocationId"
             :items="locationsWithLabel"
