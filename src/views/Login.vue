@@ -74,7 +74,10 @@ const login = () => {
 
 const confirmLocation = () => {
   const user = Utils.getStore("user");
-  Utils.setStore("user", { ...user, currentLocationId: selectedLocationId.value || null });
+  const locId = selectedLocationId.value || null;
+  const loc = locationsWithLabel.value.find((l) => l.id === locId);
+  const locName = loc?.displayName || loc?.name || null;
+  Utils.setStore("user", { ...user, currentLocationId: locId, currentLocationName: locName });
   showLocationDialog.value = false;
   router.push({ name: "home" });
 };

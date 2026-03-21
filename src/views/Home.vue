@@ -2,10 +2,15 @@
 import { ref, computed, onMounted, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
 import Utils from "../config/utils.js";
+import LocationServices from "../services/locationServices.js";
 
 const router = useRouter();
-const user = Utils.getStore("user");
+const user = ref(Utils.getStore("user"));
 const nowDisplay = ref("");
+
+const refreshUser = () => {
+  user.value = Utils.getStore("user");
+};
 
 const formatNow = () => {
   const d = new Date();
@@ -15,11 +20,28 @@ const formatNow = () => {
 };
 
 const greeting = computed(() => {
-  const firstName = user?.fName?.trim();
+  const firstName = user.value?.fName?.trim();
   return firstName ? `Hello ${firstName}, thanks for helping others today!` : "Hello, thanks for helping others today!";
 });
 
-const hasNoAccess = computed(() => user?.role === "none");
+const hasNoAccess = computed(() => user.value?.role === "none");
+
+const locationDisplay = computed(() => user.value?.currentLocationName || "");
+
+const loadLocationName = async () => {
+  const locId = user.value?.currentLocationId;
+  if (locId && !user.value?.currentLocationName) {
+    try {
+      const res = await LocationServices.get(locId);
+      const loc = res.data;
+      const name = loc?.organization ? `${loc.organization.name} – ${loc.name}` : loc?.name;
+      if (name) {
+        Utils.setStore("user", { ...user.value, currentLocationName: name });
+        user.value = Utils.getStore("user");
+      }
+    } catch {}
+  }
+};
 
 const actions = [
   { name: "addClient", label: "Add Client", icon: "mdi-account-plus", color: "success", subtitle: "Register a new client" },
@@ -32,9 +54,12 @@ let nowInterval;
 onMounted(() => {
   nowDisplay.value = formatNow();
   nowInterval = setInterval(() => { nowDisplay.value = formatNow(); }, 1000);
+  window.addEventListener("user-updated", refreshUser);
+  loadLocationName();
 });
 onUnmounted(() => {
   if (nowInterval) clearInterval(nowInterval);
+  window.removeEventListener("user-updated", refreshUser);
 });
 </script>
 
@@ -44,6 +69,7 @@ onUnmounted(() => {
       <v-row justify="center" align="center">
         <v-col cols="12" class="text-center mb-8">
           <h1 class="text-h3 font-weight-bold mb-2">{{ greeting }}</h1>
+          <p v-if="locationDisplay" class="text-body-1 text-medium-emphasis mb-1">Location: {{ locationDisplay }}</p>
           <p v-if="!hasNoAccess" class="text-h6 text-medium-emphasis">What would you like to do?</p>
         </v-col>
         <v-col cols="12" md="10" lg="8">
