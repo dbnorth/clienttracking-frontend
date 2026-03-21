@@ -33,14 +33,6 @@ const editClient = (client) => {
   router.push({ name: "editClient", params: { id: client.id } });
 };
 
-const deleteClient = (client) => {
-  if (confirm(`Delete client ${getClientName(client)}?`)) {
-    ClientServices.delete(client.id)
-      .then(() => retrieveClients())
-      .catch((e) => (message.value = e.response?.data?.message || "Error deleting"));
-  }
-};
-
 const getClientName = (c) => {
   return [c.firstName, c.middleName, c.lastName, c.suffix].filter(Boolean).join(" ") || `#${c.id}`;
 };
@@ -96,13 +88,12 @@ onMounted(() => {
   <div>
     <v-container>
       <v-toolbar>
-        <v-toolbar-title>Hello, {{ user?.fName }} {{ user?.lName }}!</v-toolbar-title>
+        <v-toolbar-title>Client</v-toolbar-title>
         <v-spacer />
         <v-btn color="primary" @click="addClient">Add Client</v-btn>
       </v-toolbar>
       <br /><br />
       <v-card>
-        <v-card-title>Clients</v-card-title>
         <v-card-text>
           <v-row class="mb-3 align-center">
             <v-col cols="12" md="3">
@@ -146,7 +137,6 @@ onMounted(() => {
               <td>
                 <v-icon small class="mx-2" @click="editClient(item)">mdi-pencil</v-icon>
                 <v-icon small class="mx-2" @click="viewClient(item)">mdi-eye</v-icon>
-                <v-icon small class="mx-2" @click="deleteClient(item)">mdi-trash-can</v-icon>
               </td>
             </tr>
             <tr v-if="!clients.length">

@@ -69,8 +69,8 @@ onUnmounted(() => {
       <v-row justify="center" align="center">
         <v-col cols="12" class="text-center mb-8">
           <h1 class="text-h3 font-weight-bold mb-2">{{ greeting }}</h1>
-          <p v-if="locationDisplay" class="text-body-1 text-medium-emphasis mb-1">Location: {{ locationDisplay }}</p>
-          <p v-if="!hasNoAccess" class="text-h6 text-medium-emphasis">What would you like to do?</p>
+          <p v-if="locationDisplay" class="text-h5 text-medium-emphasis mb-1">You are serving at {{ locationDisplay }} today.</p>
+          <p v-if="!hasNoAccess" class="text-h5 text-medium-emphasis">What would you like to do?</p>
         </v-col>
         <v-col cols="12" md="10" lg="8">
           <div class="text-h5 text-center mt-2 mb-4">{{ nowDisplay }}</div>
