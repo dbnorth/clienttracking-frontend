@@ -1,0 +1,105 @@
+<script setup>
+import { ref, onMounted } from "vue";
+import ClientServices from "../services/clientServices";
+import LookupServices from "../services/lookupServices";
+import ReferringOrganizationServices from "../services/referringOrganizationServices";
+import LocationServices from "../services/locationServices";
+import { useRouter } from "vue-router";
+import ClientForm from "../components/ClientForm.vue";
+
+const router = useRouter();
+const props = defineProps({ id: { required: true } });
+const message = ref("Edit client data and click Save");
+
+const referralTypes = ref([]);
+const organizations = ref([]);
+const intakeLocations = ref([]);
+const drugOfChoice = ref([]);
+const housingTypes = ref([]);
+const housingLocations = ref([]);
+const races = ref([]);
+const ethnicities = ref([]);
+const genders = ref([]);
+const initialSituations = ref([]);
+const benefits = ref([]);
+const client = ref({});
+
+const loadLookups = async () => {
+  try {
+    const [r, o, loc, d, h, hl, race, ethn, g, init, b] = await Promise.all([
+      LookupServices.getByType("referral_type"),
+      ReferringOrganizationServices.getAll(),
+      LocationServices.getAll(),
+      LookupServices.getByType("drug_of_choice"),
+      LookupServices.getByType("housing_type"),
+      LookupServices.getByType("housing_location"),
+      LookupServices.getByType("race"),
+      LookupServices.getByType("ethnicity"),
+      LookupServices.getByType("gender"),
+      LookupServices.getByType("initial_situation"),
+      LookupServices.getByType("benefit"),
+    ]);
+    referralTypes.value = r.data;
+    organizations.value = o.data;
+    intakeLocations.value = loc.data;
+    drugOfChoice.value = d.data;
+    housingTypes.value = h.data;
+    housingLocations.value = hl.data;
+    races.value = race.data;
+    ethnicities.value = ethn.data;
+    genders.value = g.data;
+    initialSituations.value = init.data;
+    benefits.value = b.data;
+  } catch (e) {
+    message.value = "Error loading lookup data";
+  }
+};
+
+const retrieveClient = async () => {
+  try {
+    const res = await ClientServices.get(props.id);
+    client.value = res.data;
+    if (typeof client.value.benefits === "string") {
+      try { client.value.benefits = JSON.parse(client.value.benefits) || []; } catch (_) { client.value.benefits = []; }
+    }
+    if (!Array.isArray(client.value.benefits)) client.value.benefits = [];
+    if (client.value.organizationId && client.value.organization) {
+      client.value.referralCaseWorker = client.value.organization.caseWorkerName || "";
+      client.value.referralPhone = client.value.organization.phone || "";
+    }
+  } catch (e) {
+    message.value = e.response?.data?.message || "Error loading client";
+  }
+};
+
+const saveClient = () => {
+  ClientServices.update(props.id, client.value)
+    .then(() => router.push({ name: "clients" }))
+    .catch((e) => (message.value = e.response?.data?.message || "Error saving"));
+};
+
+const cancel = () => router.push({ name: "clients" });
+
+onMounted(async () => {
+  await loadLookups();
+  await retrieveClient();
+});
+</script>
+
+<template>
+  <div>
+    <v-container>
+      <v-toolbar>
+        <v-toolbar-title>Edit Client</v-toolbar-title>
+      </v-toolbar>
+      <br />
+      <h4>{{ message }}</h4>
+      <br />
+      <ClientForm v-if="client.id" v-model="client" :referral-types="referralTypes" :organizations="organizations"
+        :intake-locations="intakeLocations" :drug-of-choice="drugOfChoice" :housing-types="housingTypes"
+        :housing-locations="housingLocations" :races="races" :ethnicities="ethnicities" :genders="genders" :initial-situations="initialSituations" :benefits="benefits" />
+      <v-btn color="success" class="mr-4 mt-4" @click="saveClient">Save</v-btn>
+      <v-btn color="error" class="mr-4 mt-4" @click="cancel">Cancel</v-btn>
+    </v-container>
+  </div>
+</template>

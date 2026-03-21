@@ -1,0 +1,278 @@
+<script setup>
+import { watch, computed } from "vue";
+
+const props = defineProps({
+  modelValue: { type: Object, required: true },
+  referralTypes: { type: Array, default: () => [] },
+  organizations: { type: Array, default: () => [] },
+  intakeLocations: { type: Array, default: () => [] },
+  drugOfChoice: { type: Array, default: () => [] },
+  housingTypes: { type: Array, default: () => [] },
+  housingLocations: { type: Array, default: () => [] },
+  races: { type: Array, default: () => [] },
+  ethnicities: { type: Array, default: () => [] },
+  genders: { type: Array, default: () => [] },
+  initialSituations: { type: Array, default: () => [] },
+  benefits: { type: Array, default: () => [] },
+  readOnly: { type: Boolean, default: false },
+});
+
+const emit = defineEmits(["update:modelValue"]);
+
+const showReferringOrganization = computed(() => {
+  if (!props.modelValue.referralTypeId) return false;
+  const selected = props.referralTypes.find((r) => r.id === props.modelValue.referralTypeId);
+  return selected?.value === "Organization";
+});
+
+const showReferralContact = computed(() => !!props.modelValue.organizationId);
+
+const showHousingAddress = computed(() => {
+  if (!props.modelValue.housingLocationId) return false;
+  const selected = props.housingLocations.find((l) => l.id === props.modelValue.housingLocationId);
+  return selected?.value === "Address";
+});
+
+const intakeLocationsWithLabel = computed(() =>
+  props.intakeLocations.map((loc) => ({
+    ...loc,
+    displayName: loc.organization ? `${loc.organization.name} – ${loc.name}` : loc.name,
+  }))
+);
+
+watch(
+  () => props.modelValue.organizationId,
+  (id) => {
+    const org = props.organizations.find((o) => o.id === id);
+    if (org) {
+      emit("update:modelValue", {
+        ...props.modelValue,
+        referralCaseWorker: org.caseWorkerName || props.modelValue.referralCaseWorker || "",
+        referralPhone: org.phone || props.modelValue.referralPhone || "",
+      });
+    }
+  }
+);
+
+watch(
+  () => props.modelValue.referralTypeId,
+  (id) => {
+    const selected = props.referralTypes.find((r) => r.id === id);
+    if (selected?.value !== "Organization" && props.modelValue.organizationId) {
+      emit("update:modelValue", {
+        ...props.modelValue,
+        organizationId: null,
+        referralCaseWorker: "",
+        referralPhone: "",
+      });
+    }
+  }
+);
+
+watch(
+  () => props.modelValue.housingLocationId,
+  (id) => {
+    const selected = props.housingLocations.find((l) => l.id === id);
+    if (selected?.value !== "Address" && (props.modelValue.housingStreet || props.modelValue.housingCity || props.modelValue.housingState || props.modelValue.housingZip)) {
+      emit("update:modelValue", {
+        ...props.modelValue,
+        housingStreet: "",
+        housingCity: "",
+        housingState: "",
+        housingZip: "",
+      });
+    }
+  }
+);
+
+watch(
+  () => props.modelValue.organizationId,
+  (id) => {
+    if (!id && (props.modelValue.referralCaseWorker || props.modelValue.referralPhone)) {
+      emit("update:modelValue", {
+        ...props.modelValue,
+        referralCaseWorker: "",
+        referralPhone: "",
+      });
+    }
+  }
+);
+</script>
+
+<template>
+  <v-form>
+    <!-- Client Info -->
+    <v-sheet class="rounded-lg mb-4 pa-0 overflow-hidden" border>
+      <div class="text-subtitle-1 pa-3 bg-grey-lighten-3 font-weight-medium">Client Info</div>
+      <div class="pa-4">
+        <v-row>
+          <v-col cols="12" md="3">
+            <v-text-field v-model="modelValue.firstName" label="First Name" :readonly="readOnly" @update:model-value="(v) => $emit('update:modelValue', { ...modelValue, firstName: v })" density="compact" />
+          </v-col>
+          <v-col cols="12" md="2">
+            <v-text-field v-model="modelValue.middleName" label="Middle" :readonly="readOnly" density="compact" />
+          </v-col>
+          <v-col cols="12" md="3">
+            <v-text-field v-model="modelValue.lastName" label="Last Name" :readonly="readOnly" density="compact" />
+          </v-col>
+          <v-col cols="12" md="2">
+            <v-text-field v-model="modelValue.suffix" label="Suffix" :readonly="readOnly" density="compact" />
+          </v-col>
+          <v-col cols="12" md="2">
+            <v-text-field v-model="modelValue.birthdate" type="date" label="Birthdate" :readonly="readOnly" density="compact" />
+          </v-col>
+        </v-row>
+        <v-row>
+          <v-col cols="12" md="4">
+            <v-text-field v-model="modelValue.phone" label="Client Phone" :readonly="readOnly" density="compact" />
+          </v-col>
+          <v-col cols="12" md="3">
+            <v-select v-model="modelValue.housingTypeId" :items="housingTypes" item-title="value" item-value="id"
+              label="Housing Type" clearable :readonly="readOnly" density="compact" />
+          </v-col>
+          <v-col cols="12" md="2">
+            <v-select v-model="modelValue.housingRedGreen" :items="['Red','Green']" label="Red/Green" clearable :readonly="readOnly" density="compact" />
+          </v-col>
+          <v-col cols="12" md="3">
+            <v-select v-model="modelValue.housingLocationId" :items="housingLocations" item-title="value" item-value="id"
+              label="Housing Location" clearable :readonly="readOnly" density="compact" />
+          </v-col>
+        </v-row>
+        <v-row v-if="showHousingAddress">
+          <v-col cols="12" md="6">
+            <v-text-field v-model="modelValue.housingStreet" label="Street" :readonly="readOnly" density="compact" />
+          </v-col>
+          <v-col cols="12" md="2">
+            <v-text-field v-model="modelValue.housingCity" label="City" :readonly="readOnly" density="compact" />
+          </v-col>
+          <v-col cols="12" md="2">
+            <v-text-field v-model="modelValue.housingState" label="State" :readonly="readOnly" density="compact" />
+          </v-col>
+          <v-col cols="12" md="2">
+            <v-text-field v-model="modelValue.housingZip" label="Zip" :readonly="readOnly" density="compact" />
+          </v-col>
+        </v-row>
+      </div>
+    </v-sheet>
+
+    <!-- Contact Info -->
+    <v-sheet class="rounded-lg mb-4 pa-0 overflow-hidden" border>
+      <div class="text-subtitle-1 pa-3 bg-grey-lighten-3 font-weight-medium">Contact Info</div>
+      <div class="pa-4">
+        <v-row>
+          <v-col cols="12" md="3">
+            <v-text-field v-model="modelValue.parentFirstName" label="Parent First Name" :readonly="readOnly" density="compact" />
+          </v-col>
+          <v-col cols="12" md="3">
+            <v-text-field v-model="modelValue.parentLastName" label="Parent Last Name" :readonly="readOnly" density="compact" />
+          </v-col>
+          <v-col cols="12" md="3">
+            <v-text-field v-model="modelValue.parentPhone" label="Parent Phone" :readonly="readOnly" density="compact" />
+          </v-col>
+        </v-row>
+        <v-row>
+          <v-col cols="12" md="6">
+            <v-text-field v-model="modelValue.emergencyContactName" label="Emergency Contact Name" :readonly="readOnly" density="compact" />
+          </v-col>
+          <v-col cols="12" md="6">
+            <v-text-field v-model="modelValue.emergencyContactPhone" label="Emergency Contact Phone" :readonly="readOnly" density="compact" />
+          </v-col>
+        </v-row>
+      </div>
+    </v-sheet>
+
+    <!-- Demographic -->
+    <v-sheet class="rounded-lg mb-4 pa-0 overflow-hidden" border>
+      <div class="text-subtitle-1 pa-3 bg-grey-lighten-3 font-weight-medium">Demographic</div>
+      <div class="pa-4">
+        <v-row>
+          <v-col cols="12" md="3">
+            <v-select v-model="modelValue.genderId" :items="genders" item-title="value" item-value="id"
+              label="Gender" clearable :readonly="readOnly" density="compact" />
+          </v-col>
+          <v-col cols="12" md="3">
+            <v-select v-model="modelValue.raceId" :items="races" item-title="value" item-value="id"
+              label="Race" clearable :readonly="readOnly" density="compact" />
+          </v-col>
+          <v-col cols="12" md="3">
+            <v-select v-model="modelValue.ethnicityId" :items="ethnicities" item-title="value" item-value="id"
+              label="Ethnicity" clearable :readonly="readOnly" density="compact" />
+          </v-col>
+          <v-col cols="12" md="3">
+            <v-select v-model="modelValue.initialSituationId" :items="initialSituations" item-title="value" item-value="id"
+              label="Initial Situation" clearable :readonly="readOnly" density="compact" />
+          </v-col>
+        </v-row>
+      </div>
+    </v-sheet>
+
+    <!-- Referral -->
+    <v-sheet class="rounded-lg mb-4 pa-0 overflow-hidden" border>
+      <div class="text-subtitle-1 pa-3 bg-grey-lighten-3 font-weight-medium">Referral</div>
+      <div class="pa-4">
+        <v-row>
+          <v-col cols="12" md="4">
+            <v-select v-model="modelValue.referralTypeId" :items="referralTypes" item-title="value" item-value="id"
+              label="Referral Type" clearable :readonly="readOnly" density="compact" />
+          </v-col>
+          <v-col v-if="showReferringOrganization" cols="12" md="4">
+            <v-select v-model="modelValue.organizationId" :items="organizations" item-title="name" item-value="id"
+              label="Referring Organization" clearable :readonly="readOnly" density="compact" />
+          </v-col>
+        </v-row>
+        <v-row v-if="showReferralContact">
+          <v-col cols="12" md="4">
+            <v-text-field v-model="modelValue.referralCaseWorker" label="Case Worker" :readonly="readOnly" density="compact" />
+          </v-col>
+          <v-col cols="12" md="4">
+            <v-text-field v-model="modelValue.referralPhone" label="Phone" :readonly="readOnly" density="compact" />
+          </v-col>
+        </v-row>
+      </div>
+    </v-sheet>
+
+    <!-- Situation -->
+    <v-sheet class="rounded-lg mb-4 pa-0 overflow-hidden" border>
+      <div class="text-subtitle-1 pa-3 bg-grey-lighten-3 font-weight-medium">Situation</div>
+      <div class="pa-4">
+        <v-row>
+          <v-col cols="12" md="4">
+            <v-select v-model="modelValue.drugOfChoiceId" :items="drugOfChoice" item-title="value" item-value="id"
+              label="Drug of Choice" clearable :readonly="readOnly" density="compact" />
+          </v-col>
+          <v-col cols="12" md="4">
+            <v-select v-model="modelValue.drugMethod" :items="['oral','inject','smoke']" label="Drug Method" clearable :readonly="readOnly" density="compact" />
+          </v-col>
+          <v-col cols="12" md="6">
+            <v-select v-model="modelValue.benefits" :items="benefits" item-title="value" item-value="id"
+              label="Benefits" multiple chips clearable :readonly="readOnly" density="compact" />
+          </v-col>
+        </v-row>
+      </div>
+    </v-sheet>
+
+    <!-- Organization Info -->
+    <v-sheet class="rounded-lg mb-4 pa-0 overflow-hidden" border>
+      <div class="text-subtitle-1 pa-3 bg-grey-lighten-3 font-weight-medium">Organization Info</div>
+      <div class="pa-4">
+        <v-row>
+          <v-col cols="12" md="6">
+            <v-select
+              v-model="modelValue.intakeLocationId"
+              :items="intakeLocationsWithLabel"
+              item-title="displayName"
+              item-value="id"
+              label="Intake Location"
+              clearable
+              :readonly="readOnly"
+              density="compact"
+            />
+          </v-col>
+          <v-col cols="12" md="4">
+            <v-select v-model="modelValue.status" :items="['Active','Lost Contact','Deceased']" label="Status" :readonly="readOnly" density="compact" />
+          </v-col>
+        </v-row>
+      </div>
+    </v-sheet>
+  </v-form>
+</template>
