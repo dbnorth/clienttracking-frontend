@@ -19,14 +19,8 @@ const successMessage = ref("");
 const loading = ref(false);
 
 const showAddUser = ref(false);
-const showResetPassword = ref(false);
 const registerLoading = ref(false);
 const registerMessage = ref("");
-const resetUsername = ref("");
-const resetPassword = ref("");
-const resetConfirm = ref("");
-const resetLoading = ref(false);
-const resetMessage = ref("");
 const newUser = ref({
   fName: "",
   lName: "",
@@ -146,35 +140,6 @@ const register = () => {
     });
 };
 
-const doResetPassword = () => {
-  resetMessage.value = "";
-  if (!resetUsername.value?.trim() || !resetPassword.value || !resetConfirm.value) {
-    resetMessage.value = "All fields are required.";
-    return;
-  }
-  if (resetPassword.value !== resetConfirm.value) {
-    resetMessage.value = "Passwords do not match.";
-    return;
-  }
-  if (resetPassword.value.length < 8) {
-    resetMessage.value = "Password must be at least 8 characters.";
-    return;
-  }
-  resetLoading.value = true;
-  AuthServices.resetPassword(resetUsername.value.trim(), resetPassword.value)
-    .then(() => {
-      showResetPassword.value = false;
-      successMessage.value = "Password updated. You can sign in now.";
-      loginError.value = "";
-    })
-    .catch((e) => {
-      resetMessage.value = e.response?.data?.message || "Reset failed.";
-    })
-    .finally(() => {
-      resetLoading.value = false;
-    });
-};
-
 onMounted(() => loadOrganizations());
 </script>
 
@@ -202,7 +167,6 @@ onMounted(() => loadOrganizations());
       <v-card-actions class="flex-wrap">
         <v-btn color="primary" :loading="loading" @click="login">Sign in</v-btn>
         <v-btn variant="text" @click="openAddUser">Add user</v-btn>
-        <v-btn variant="text" color="grey" @click="showResetPassword = true">Reset password</v-btn>
       </v-card-actions>
     </v-card>
 
@@ -259,24 +223,6 @@ onMounted(() => loadOrganizations());
         <v-card-actions>
           <v-spacer />
           <v-btn color="primary" :disabled="!selectedLocationId" @click="confirmLocation">Continue</v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
-
-    <v-dialog v-model="showResetPassword" max-width="420" persistent>
-      <v-card>
-        <v-card-title class="text-h6">Reset password</v-card-title>
-        <v-card-text>
-          <p class="text-caption mb-2">Enter your username and a new password. (Only available in development.)</p>
-          <v-alert v-if="resetMessage" type="error" density="compact" class="mb-3">{{ resetMessage }}</v-alert>
-          <v-text-field v-model="resetUsername" label="Username" density="comfortable" />
-          <v-text-field v-model="resetPassword" label="New password" type="password" density="comfortable" hint="Min 8 characters" persistent-hint />
-          <v-text-field v-model="resetConfirm" label="Confirm new password" type="password" density="comfortable" />
-        </v-card-text>
-        <v-card-actions>
-          <v-spacer />
-          <v-btn variant="text" @click="showResetPassword = false">Cancel</v-btn>
-          <v-btn color="primary" :loading="resetLoading" @click="doResetPassword">Reset</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
