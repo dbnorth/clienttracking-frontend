@@ -68,8 +68,8 @@ const loadOrgLogo = () => {
 };
 
 const actions = [
-  { name: "addClient", label: "Add Client", icon: "mdi-account-plus", color: "success", subtitle: "Register a new client" },
-  { name: "addEncounter", label: "Add Encounter", icon: "mdi-hand-heart", color: "secondary", subtitle: "Record services requested or provided" },
+  { name: "addClient", label: "Add Client", icon: "mdi-account-plus", subtitle: "Register a new client" },
+  { name: "addEncounter", label: "Add Encounter", icon: "mdi-hand-heart", subtitle: "Record services requested or provided" },
 ];
 
 const goTo = (routeName) => router.push({ name: routeName });
@@ -112,14 +112,14 @@ onUnmounted(() => {
           <v-row v-else justify="center">
             <v-col v-for="action in actions" :key="action.name" cols="12" sm="6" md="4" >
               <v-card
-                :color="action.color"
+                color="primary"
                 class="home-action-card pa-8 rounded-xl"
                 elevation="4"
                 hover
                 @click="goTo(action.name)"
               >
-                <v-card-text class="text-center pa-0">
-                  <v-icon size="100" class="mb-4 d-block mx-auto">{{ action.icon }}</v-icon>
+                <v-card-text class="text-center pa-0 text-white">
+                  <v-icon size="100" class="mb-4 d-block mx-auto" color="white">{{ action.icon }}</v-icon>
                   <div class="text-h4 font-weight-bold mb-2">{{ action.label }}</div>
                   <div class="text-body-1 opacity-90">{{ action.subtitle }}</div>
                 </v-card-text>

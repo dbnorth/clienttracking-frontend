@@ -23,7 +23,7 @@ const showLocationDialog = ref(false);
 const showLookupDialog = ref(false);
 const showUserDialog = ref(false);
 const refOrgForm = ref({ id: null, name: "", caseWorkerName: "", phone: "", referringOrganizationTypeId: null });
-const orgForm = ref({ id: null, name: "", contactName: "", phoneNumber: "", street: "", city: "", state: "", zip: "", logoUrl: null });
+const orgForm = ref({ id: null, name: "", contactName: "", phoneNumber: "", street: "", city: "", state: "", zip: "", logoUrl: null, primaryColor: "#80162B" });
 const locationForm = ref({ id: null, organizationId: null, name: "", address: "", contactName: "", phoneNumber: "" });
 const lookupForm = ref({ id: null, type: "housing_location", value: "", sortOrder: 0, status: "Active" });
 const userForm = ref({ id: null, fName: "", lName: "", email: "", username: "", password: "", organizationId: null, role: "worker" });
@@ -204,14 +204,16 @@ const orgLogoUploading = ref(false);
 const orgLogoError = ref("");
 const orgLogoFile = ref(null);
 
+const DEFAULT_PRIMARY_COLOR = "#80162B";
+
 const openAddOrg = () => {
-  orgForm.value = { id: null, name: "", contactName: "", phoneNumber: "", street: "", city: "", state: "", zip: "", logoUrl: null };
+  orgForm.value = { id: null, name: "", contactName: "", phoneNumber: "", street: "", city: "", state: "", zip: "", logoUrl: null, primaryColor: DEFAULT_PRIMARY_COLOR };
   orgLogoError.value = "";
   showOrgDialog.value = true;
 };
 
 const openEditOrg = (org) => {
-  orgForm.value = { ...org, logoUrl: org.logoUrl || null };
+  orgForm.value = { ...org, logoUrl: org.logoUrl || null, primaryColor: org.primaryColor || DEFAULT_PRIMARY_COLOR };
   orgLogoError.value = "";
   showOrgDialog.value = true;
 };
@@ -273,12 +275,14 @@ const saveOrg = () => {
     city: orgForm.value.city?.trim() || null,
     state: orgForm.value.state?.trim() || null,
     zip: orgForm.value.zip?.trim() || null,
+    primaryColor: orgForm.value.primaryColor?.trim() || null,
   };
   if (orgForm.value.id) {
     OrganizationServices.update(orgForm.value.id, data)
       .then(() => {
         loadOrganizations();
         showOrgDialog.value = false;
+        window.dispatchEvent(new CustomEvent("org-updated"));
       })
       .catch((e) => (message.value = e.response?.data?.message || "Error saving"));
   } else {
@@ -286,6 +290,7 @@ const saveOrg = () => {
       .then(() => {
         loadOrganizations();
         showOrgDialog.value = false;
+        window.dispatchEvent(new CustomEvent("org-updated"));
       })
       .catch((e) => (message.value = e.response?.data?.message || "Error saving"));
   }
@@ -749,6 +754,25 @@ onMounted(() => {
               <v-alert v-if="orgLogoError" type="error" density="compact" class="mt-2">{{ orgLogoError }}</v-alert>
             </div>
           </template>
+          <div class="mb-3">
+            <div class="text-caption mb-1">Primary Color</div>
+            <div class="d-flex align-center ga-2">
+              <input
+                v-model="orgForm.primaryColor"
+                type="color"
+                class="rounded"
+                style="width: 48px; height: 38px; border: 1px solid rgba(0,0,0,0.2); cursor: pointer"
+              />
+              <v-text-field
+                v-model="orgForm.primaryColor"
+                label="Hex color"
+                density="compact"
+                hide-details
+                placeholder="#80162B"
+                style="max-width: 120px"
+              />
+            </div>
+          </div>
           <v-text-field v-model="orgForm.name" label="Organization Name" />
           <v-text-field v-model="orgForm.contactName" label="Contact Name" />
           <v-text-field v-model="orgForm.phoneNumber" label="Phone Number" />

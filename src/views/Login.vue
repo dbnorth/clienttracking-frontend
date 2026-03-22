@@ -39,6 +39,7 @@ const login = () => {
         selectedLocationId.value = Utils.getStore("user")?.currentLocationId || locations.value[0]?.id || null;
         showLocationDialog.value = true;
       } else {
+        window.dispatchEvent(new CustomEvent("user-logged-in"));
         router.push({ name: "home" });
       }
     })
@@ -46,6 +47,7 @@ const login = () => {
       if (!loginResponse.value) {
         loginError.value = e.response?.data?.message || "Login failed.";
       } else {
+        window.dispatchEvent(new CustomEvent("user-logged-in"));
         router.push({ name: "home" });
       }
     })
@@ -61,6 +63,7 @@ const confirmLocation = () => {
   const locName = loc?.displayName || loc?.name || null;
   Utils.setStore("user", { ...user, currentLocationId: locId, currentLocationName: locName });
   showLocationDialog.value = false;
+  window.dispatchEvent(new CustomEvent("user-logged-in"));
   router.push({ name: "home" });
 };
 

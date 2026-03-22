@@ -121,7 +121,7 @@ watch(user, () => loadTitle(), { deep: true });
 
 <template>
   <div>
-    <v-app-bar app>
+    <v-app-bar app class="menu-bar-primary-shadow">
       <router-link
         v-if="user && orgLogoUrl"
         :to="{ name: 'home' }"
@@ -203,3 +203,9 @@ watch(user, () => loadTitle(), { deep: true });
     </v-app-bar>
   </div>
 </template>
+
+<style scoped>
+.menu-bar-primary-shadow {
+  box-shadow: 0 4px 6px -1px rgba(var(--v-theme-primary), 0.2), 0 2px 4px -2px rgba(var(--v-theme-primary), 0.1) !important;
+}
+</style>
