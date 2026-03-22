@@ -5,10 +5,12 @@ import LookupServices from "../services/lookupServices";
 import ReferringOrganizationServices from "../services/referringOrganizationServices";
 import LocationServices from "../services/locationServices";
 import { useRouter } from "vue-router";
+import { phoneRule } from "../utils/phoneUtils.js";
 import ClientForm from "../components/ClientForm.vue";
 
 const router = useRouter();
 const props = defineProps({ id: { required: true } });
+const clientFormRef = ref(null);
 const message = ref("Edit client data and click Save");
 
 const referralTypes = ref([]);
@@ -72,7 +74,16 @@ const retrieveClient = async () => {
   }
 };
 
-const saveClient = () => {
+const saveClient = async () => {
+  const { valid } = (await clientFormRef.value?.validate()) ?? { valid: false };
+  if (!valid) return;
+  for (const field of ["parentPhone", "referralPhone"]) {
+    const err = phoneRule(client.value[field]);
+    if (err !== true) {
+      message.value = err;
+      return;
+    }
+  }
   ClientServices.update(props.id, client.value)
     .then(() => router.push({ name: "clients" }))
     .catch((e) => (message.value = e.response?.data?.message || "Error saving"));
@@ -95,11 +106,14 @@ onMounted(async () => {
       <br />
       <h4>{{ message }}</h4>
       <br />
-      <ClientForm v-if="client.id" v-model="client" :referral-types="referralTypes" :organizations="organizations"
+      <ClientForm ref="clientFormRef" v-if="client.id" v-model="client" :referral-types="referralTypes" :organizations="organizations"
         :intake-locations="intakeLocations" :drug-of-choice="drugOfChoice" :housing-types="housingTypes"
         :housing-locations="housingLocations" :races="races" :ethnicities="ethnicities" :genders="genders" :initial-situations="initialSituations" :benefits="benefits" />
-      <v-btn color="success" class="mr-4 mt-4" @click="saveClient">Save</v-btn>
-      <v-btn color="error" class="mr-4 mt-4" @click="cancel">Cancel</v-btn>
+      <div class="d-flex align-center mt-4">
+        <v-spacer />
+        <v-btn variant="text" @click="cancel">Cancel</v-btn>
+        <v-btn color="primary" @click="saveClient">Save</v-btn>
+      </div>
     </v-container>
   </div>
 </template>

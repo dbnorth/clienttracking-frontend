@@ -7,10 +7,11 @@ import ReferringOrganizationServices from "../services/referringOrganizationServ
 import LocationServices from "../services/locationServices";
 import OrganizationServices from "../services/organizationServices";
 import Utils from "../config/utils.js";
+import { phoneRule } from "../utils/phoneUtils.js";
 import { useRouter } from "vue-router";
 
 const router = useRouter();
-const valid = ref(true);
+const clientFormRef = ref(null);
 const user = Utils.getStore("user");
 const message = ref("Enter client data and click Save");
 
@@ -107,7 +108,16 @@ const loadLookups = async () => {
 };
 
 
-const saveClient = () => {
+const saveClient = async () => {
+  const { valid } = (await clientFormRef.value?.validate()) ?? { valid: false };
+  if (!valid) return;
+  for (const field of ["parentPhone", "referralPhone"]) {
+    const err = phoneRule(client.value[field]);
+    if (err !== true) {
+      message.value = err;
+      return;
+    }
+  }
   const data = { ...client.value };
   data.dateOfFirstContact = new Date().toISOString().split("T")[0];
   data.statusChangeDate = data.dateOfFirstContact;
@@ -132,11 +142,14 @@ onMounted(() => loadLookups());
       <br />
       <h4>{{ message }}</h4>
       <br />
-      <ClientForm v-model="client" :referral-types="referralTypes" :organizations="organizations"
+      <ClientForm ref="clientFormRef" v-model="client" :referral-types="referralTypes" :organizations="organizations"
         :intake-locations="intakeLocations" :drug-of-choice="drugOfChoice" :housing-types="housingTypes"
         :housing-locations="housingLocations" :races="races" :ethnicities="ethnicities" :genders="genders" :initial-situations="initialSituations" :benefits="benefits" />
-      <v-btn color="success" class="mr-4 mt-4" @click="saveClient">Save</v-btn>
-      <v-btn color="error" class="mr-4 mt-4" @click="cancel">Cancel</v-btn>
+      <div class="d-flex align-center mt-4">
+        <v-spacer />
+        <v-btn variant="text" @click="cancel">Cancel</v-btn>
+        <v-btn color="primary" @click="saveClient">Save</v-btn>
+      </div>
     </v-container>
   </div>
 </template>

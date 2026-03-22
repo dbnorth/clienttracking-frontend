@@ -5,6 +5,8 @@ import OrganizationServices from "../services/organizationServices";
 import LookupServices from "../services/lookupServices";
 import LocationServices from "../services/locationServices";
 import UserServices from "../services/userServices";
+import PhoneInput from "../components/PhoneInput.vue";
+import { phoneRule, formatPhoneForDisplay } from "../utils/phoneUtils.js";
 
 const tab = ref("referringOrgs");
 const message = ref("");
@@ -23,10 +25,17 @@ const showLocationDialog = ref(false);
 const showLookupDialog = ref(false);
 const showUserDialog = ref(false);
 const refOrgForm = ref({ id: null, name: "", caseWorkerName: "", phone: "", referringOrganizationTypeId: null });
-const orgForm = ref({ id: null, name: "", contactName: "", phoneNumber: "", street: "", city: "", state: "", zip: "" });
+const orgForm = ref({ id: null, name: "", contactName: "", phoneNumber: "", street: "", city: "", state: "", zip: "", logoUrl: null, primaryColor: "#80162B" });
 const locationForm = ref({ id: null, organizationId: null, name: "", address: "", contactName: "", phoneNumber: "" });
 const lookupForm = ref({ id: null, type: "housing_location", value: "", sortOrder: 0, status: "Active" });
 const userForm = ref({ id: null, fName: "", lName: "", email: "", username: "", password: "", organizationId: null, role: "worker" });
+const userFormRef = ref(null);
+const requiredText = [(v) => !!v?.trim() || "Required"];
+const requiredSelect = [(v) => (v != null && v !== "") || "Required"];
+const passwordRule = (isAdd) => [
+  ...(isAdd ? [(v) => !!v?.trim() || "Required"] : []),
+  (v) => !v || v.length >= 8 || "Min 8 characters",
+];
 const ROLE_OPTIONS = [
   { title: "Admin", value: "admin" },
   { title: "Worker", value: "worker" },
@@ -96,27 +105,13 @@ const openEditUser = (u) => {
   showUserDialog.value = true;
 };
 
-const saveUser = () => {
-  if (!userForm.value.fName?.trim() || !userForm.value.lName?.trim()) {
-    message.value = "First and last name are required.";
-    return;
-  }
-  if (!userForm.value.email?.trim() || !userForm.value.username?.trim()) {
-    message.value = "Email and username are required.";
-    return;
-  }
-  if (!userForm.value.id && !userForm.value.password) {
-    message.value = "Password is required when adding a new user.";
-    return;
-  }
-  if (userForm.value.password && userForm.value.password.length < 8) {
-    message.value = "Password must be at least 8 characters.";
-    return;
-  }
+const saveUser = async () => {
+  const { valid } = (await userFormRef.value?.validate()) ?? { valid: false };
+  if (!valid) return;
   const data = {
     fName: userForm.value.fName.trim(),
     lName: userForm.value.lName.trim(),
-    email: userForm.value.email.trim(),
+    email: (userForm.value.email || "").trim() || null,
     username: userForm.value.username.trim(),
     organizationId: userForm.value.organizationId || null,
     role: userForm.value.role || "worker",
@@ -170,6 +165,11 @@ const saveRefOrg = () => {
     message.value = "Name is required.";
     return;
   }
+  const phoneErr = phoneRule(refOrgForm.value.phone);
+  if (phoneErr !== true) {
+    message.value = phoneErr;
+    return;
+  }
   const data = {
     name: refOrgForm.value.name.trim(),
     caseWorkerName: refOrgForm.value.caseWorkerName?.trim() || null,
@@ -200,19 +200,76 @@ const deleteRefOrg = (org) => {
     .catch((e) => (message.value = e.response?.data?.message || "Error deleting"));
 };
 
+const orgLogoUploading = ref(false);
+const orgLogoError = ref("");
+const orgLogoFile = ref(null);
+
+const DEFAULT_PRIMARY_COLOR = "#80162B";
+
 const openAddOrg = () => {
-  orgForm.value = { id: null, name: "", contactName: "", phoneNumber: "", street: "", city: "", state: "", zip: "" };
+  orgForm.value = { id: null, name: "", contactName: "", phoneNumber: "", street: "", city: "", state: "", zip: "", logoUrl: null, primaryColor: DEFAULT_PRIMARY_COLOR };
+  orgLogoError.value = "";
   showOrgDialog.value = true;
 };
 
 const openEditOrg = (org) => {
-  orgForm.value = { ...org };
+  orgForm.value = { ...org, logoUrl: org.logoUrl || null, primaryColor: org.primaryColor || DEFAULT_PRIMARY_COLOR };
+  orgLogoError.value = "";
   showOrgDialog.value = true;
+};
+
+const onOrgLogoSelected = (fileOrFiles) => {
+  const file = Array.isArray(fileOrFiles) ? fileOrFiles[0] : fileOrFiles;
+  if (!file || !orgForm.value.id) return;
+  if (!file.type?.startsWith("image/")) {
+    orgLogoError.value = "Please select an image file (PNG, JPEG, or GIF).";
+    return;
+  }
+  if (file.size > 2 * 1024 * 1024) {
+    orgLogoError.value = "Image must be 2MB or smaller.";
+    return;
+  }
+  orgLogoError.value = "";
+  orgLogoUploading.value = true;
+  OrganizationServices.uploadLogo(orgForm.value.id, file)
+    .then((res) => {
+      orgForm.value.logoUrl = res.data?.logoUrl ?? res.data;
+      loadOrganizations();
+    })
+    .catch((e) => {
+      orgLogoError.value = e.response?.data?.message || "Upload failed.";
+    })
+    .finally(() => {
+      orgLogoUploading.value = false;
+      orgLogoFile.value = null;
+    });
+};
+
+const removeOrgLogo = () => {
+  if (!orgForm.value.id || !orgForm.value.logoUrl) return;
+  orgLogoError.value = "";
+  orgLogoUploading.value = true;
+  OrganizationServices.removeLogo(orgForm.value.id)
+    .then(() => {
+      orgForm.value.logoUrl = null;
+      loadOrganizations();
+    })
+    .catch((e) => {
+      orgLogoError.value = e.response?.data?.message || "Failed to remove logo.";
+    })
+    .finally(() => {
+      orgLogoUploading.value = false;
+    });
 };
 
 const saveOrg = () => {
   if (!orgForm.value.name?.trim()) {
     message.value = "Name is required.";
+    return;
+  }
+  const phoneErr = phoneRule(orgForm.value.phoneNumber);
+  if (phoneErr !== true) {
+    message.value = phoneErr;
     return;
   }
   const data = {
@@ -223,12 +280,14 @@ const saveOrg = () => {
     city: orgForm.value.city?.trim() || null,
     state: orgForm.value.state?.trim() || null,
     zip: orgForm.value.zip?.trim() || null,
+    primaryColor: orgForm.value.primaryColor?.trim() || null,
   };
   if (orgForm.value.id) {
     OrganizationServices.update(orgForm.value.id, data)
       .then(() => {
         loadOrganizations();
         showOrgDialog.value = false;
+        window.dispatchEvent(new CustomEvent("org-updated"));
       })
       .catch((e) => (message.value = e.response?.data?.message || "Error saving"));
   } else {
@@ -236,6 +295,7 @@ const saveOrg = () => {
       .then(() => {
         loadOrganizations();
         showOrgDialog.value = false;
+        window.dispatchEvent(new CustomEvent("org-updated"));
       })
       .catch((e) => (message.value = e.response?.data?.message || "Error saving"));
   }
@@ -272,6 +332,11 @@ const saveLocation = () => {
   }
   if (!locationForm.value.organizationId) {
     message.value = "Organization is required.";
+    return;
+  }
+  const phoneErr = phoneRule(locationForm.value.phoneNumber);
+  if (phoneErr !== true) {
+    message.value = phoneErr;
     return;
   }
   const data = {
@@ -439,7 +504,7 @@ onMounted(() => {
                   <td>{{ org.name }}</td>
                   <td>{{ org.referringOrganizationType?.value || "–" }}</td>
                   <td>{{ org.caseWorkerName || "–" }}</td>
-                  <td>{{ org.phone || "–" }}</td>
+                  <td>{{ formatPhoneForDisplay(org.phone) || "–" }}</td>
                   <td>
                     <v-icon small class="mr-2" @click="openEditRefOrg(org)">mdi-pencil</v-icon>
                     <v-icon small @click="deleteRefOrg(org)">mdi-trash-can</v-icon>
@@ -476,7 +541,7 @@ onMounted(() => {
                 <tr v-for="org in organizations" :key="org.id">
                   <td>{{ org.name }}</td>
                   <td>{{ org.contactName || "–" }}</td>
-                  <td>{{ org.phoneNumber || "–" }}</td>
+                  <td>{{ formatPhoneForDisplay(org.phoneNumber) || "–" }}</td>
                   <td>{{ [org.street, org.city, org.state, org.zip].filter(Boolean).join(", ") || "–" }}</td>
                   <td>
                     <v-icon small class="mr-2" @click="openEditOrg(org)">mdi-pencil</v-icon>
@@ -517,7 +582,7 @@ onMounted(() => {
                   <td>{{ loc.name }}</td>
                   <td>{{ loc.address || "–" }}</td>
                   <td>{{ loc.contactName || "–" }}</td>
-                  <td>{{ loc.phoneNumber || "–" }}</td>
+                  <td>{{ formatPhoneForDisplay(loc.phoneNumber) || "–" }}</td>
                   <td>
                     <v-icon small class="mr-2" @click="openEditLocation(loc)">mdi-pencil</v-icon>
                     <v-icon small @click="deleteLocation(loc)">mdi-trash-can</v-icon>
@@ -644,7 +709,7 @@ onMounted(() => {
             clearable
           />
           <v-text-field v-model="refOrgForm.caseWorkerName" label="Case Worker Name" />
-          <v-text-field v-model="refOrgForm.phone" label="Phone" />
+          <PhoneInput v-model="refOrgForm.phone" label="Phone" />
         </v-card-text>
         <v-card-actions>
           <v-spacer />
@@ -658,9 +723,69 @@ onMounted(() => {
       <v-card>
         <v-card-title>{{ orgForm.id ? "Edit" : "Add" }} Organization</v-card-title>
         <v-card-text>
+          <template v-if="orgForm.id">
+            <div class="mb-4">
+              <div class="text-caption mb-2">Logo</div>
+              <div v-if="orgForm.logoUrl" class="d-flex align-center ga-3">
+                <img
+                  :src="OrganizationServices.getLogoUrl(orgForm.logoUrl)"
+                  alt="Organization logo"
+                  style="max-height: 80px; max-width: 120px; object-fit: contain"
+                />
+                <v-btn variant="text" color="error" size="small" :disabled="orgLogoUploading" @click="removeOrgLogo">Remove</v-btn>
+              </div>
+              <v-file-input
+                v-else
+                v-model="orgLogoFile"
+                label="Upload logo"
+                prepend-icon=""
+                prepend-inner-icon="mdi-camera"
+                accept="image/png, image/jpeg, image/jpg, image/gif"
+                density="compact"
+                hide-details
+                :loading="orgLogoUploading"
+                :disabled="orgLogoUploading"
+                @update:model-value="onOrgLogoSelected"
+              />
+              <v-file-input
+                v-if="orgForm.logoUrl"
+                v-model="orgLogoFile"
+                label="Replace logo"
+                prepend-icon=""
+                prepend-inner-icon="mdi-camera"
+                accept="image/png, image/jpeg, image/jpg, image/gif"
+                density="compact"
+                hide-details
+                class="mt-2"
+                :loading="orgLogoUploading"
+                :disabled="orgLogoUploading"
+                @update:model-value="onOrgLogoSelected"
+              />
+              <v-alert v-if="orgLogoError" type="error" density="compact" class="mt-2">{{ orgLogoError }}</v-alert>
+            </div>
+          </template>
+          <div class="mb-3">
+            <div class="text-caption mb-1">Primary Color</div>
+            <div class="d-flex align-center ga-2">
+              <input
+                v-model="orgForm.primaryColor"
+                type="color"
+                class="rounded"
+                style="width: 48px; height: 38px; border: 1px solid rgba(0,0,0,0.2); cursor: pointer"
+              />
+              <v-text-field
+                v-model="orgForm.primaryColor"
+                label="Hex color"
+                density="compact"
+                hide-details
+                placeholder="#80162B"
+                style="max-width: 120px"
+              />
+            </div>
+          </div>
           <v-text-field v-model="orgForm.name" label="Organization Name" />
           <v-text-field v-model="orgForm.contactName" label="Contact Name" />
-          <v-text-field v-model="orgForm.phoneNumber" label="Phone Number" />
+          <PhoneInput v-model="orgForm.phoneNumber" label="Phone Number" />
           <v-text-field v-model="orgForm.street" label="Street" />
           <v-text-field v-model="orgForm.city" label="City" />
           <v-text-field v-model="orgForm.state" label="State" />
@@ -688,7 +813,7 @@ onMounted(() => {
           <v-text-field v-model="locationForm.name" label="Name" />
           <v-text-field v-model="locationForm.address" label="Address" />
           <v-text-field v-model="locationForm.contactName" label="Contact Name" />
-          <v-text-field v-model="locationForm.phoneNumber" label="Phone Number" />
+          <PhoneInput v-model="locationForm.phoneNumber" label="Phone Number" />
         </v-card-text>
         <v-card-actions>
           <v-spacer />
@@ -702,32 +827,55 @@ onMounted(() => {
       <v-card>
         <v-card-title>{{ userForm.id ? "Edit User" : "Add User" }}</v-card-title>
         <v-card-text>
-          <v-text-field v-model="userForm.fName" label="First Name" />
-          <v-text-field v-model="userForm.lName" label="Last Name" />
-          <v-text-field v-model="userForm.email" label="Email" type="email" />
-          <v-text-field v-model="userForm.username" label="Username" />
-          <v-text-field
-            v-model="userForm.password"
-            :label="userForm.id ? 'New Password (leave blank to keep current)' : 'Password'"
-            type="password"
-            :hint="userForm.id ? 'Min 8 characters' : 'Min 8 characters required'"
-            persistent-hint
-          />
-          <v-select
-            v-model="userForm.role"
-            :items="ROLE_OPTIONS"
-            item-title="title"
-            item-value="value"
-            label="Role"
-          />
-          <v-select
-            v-model="userForm.organizationId"
-            :items="organizations"
-            item-title="name"
-            item-value="id"
-            label="Organization"
-            clearable
-          />
+          <v-form ref="userFormRef" validate-on="submit lazy">
+            <div class="text-caption text-medium-emphasis mb-3">* required field</div>
+            <v-text-field
+              v-model="userForm.fName"
+              label="First Name *"
+              :rules="requiredText"
+              density="compact"
+            />
+            <v-text-field
+              v-model="userForm.lName"
+              label="Last Name *"
+              :rules="requiredText"
+              density="compact"
+            />
+            <v-text-field v-model="userForm.email" label="Email" type="email" density="compact" />
+            <v-text-field
+              v-model="userForm.username"
+              label="Username *"
+              :rules="requiredText"
+              density="compact"
+            />
+            <v-text-field
+              v-model="userForm.password"
+              :label="userForm.id ? 'New Password (leave blank to keep current)' : 'Password *'"
+              type="password"
+              :rules="passwordRule(!userForm.id)"
+              :hint="userForm.id ? 'Min 8 characters' : 'Min 8 characters required'"
+              persistent-hint
+              density="compact"
+            />
+            <v-select
+              v-model="userForm.role"
+              :items="ROLE_OPTIONS"
+              item-title="title"
+              item-value="value"
+              label="Role *"
+              :rules="requiredSelect"
+              density="compact"
+            />
+            <v-select
+              v-model="userForm.organizationId"
+              :items="organizations"
+              item-title="name"
+              item-value="id"
+              label="Organization *"
+              :rules="requiredSelect"
+              density="compact"
+            />
+          </v-form>
         </v-card-text>
         <v-card-actions>
           <v-spacer />

@@ -7,6 +7,7 @@ import ReferringOrganizationServices from "../services/referringOrganizationServ
 import LocationServices from "../services/locationServices";
 import { useRouter } from "vue-router";
 import Utils from "../config/utils.js";
+import { formatPhoneForDisplay } from "../utils/phoneUtils.js";
 
 const router = useRouter();
 const user = Utils.getStore("user");
@@ -129,7 +130,7 @@ onMounted(async () => {
           <div class="text-body-2">
             <div class="mb-2"><strong>Name:</strong> {{ [client.firstName, client.middleName, client.lastName].filter(Boolean).join(' ') || '–' }}{{ client.suffix ? ` ${client.suffix}` : '' }}</div>
             <div class="mb-2"><strong>Birthdate:</strong> {{ Utils.formatDate(client.birthdate) || '–' }}</div>
-            <div class="mb-2"><strong>Phone:</strong> {{ client.phone || '–' }}</div>
+            <div class="mb-2"><strong>Phone:</strong> {{ formatPhoneForDisplay(client.phone) || '–' }}</div>
             <div class="mb-2"><strong>Housing Type:</strong> {{ lookupValue(housingTypes, client.housingTypeId) }}</div>
             <div class="mb-2"><strong>Red/Green:</strong> {{ client.housingRedGreen || '–' }}</div>
             <div class="mb-2"><strong>Housing Location:</strong> {{ lookupValue(housingLocations, client.housingLocationId) }}</div>
@@ -145,9 +146,9 @@ onMounted(async () => {
           <div class="text-subtitle-1 mb-3 font-weight-medium">Contact Info</div>
           <div class="text-body-2">
             <div class="mb-2"><strong>Parent:</strong> {{ [client.parentFirstName, client.parentLastName].filter(Boolean).join(' ') || '–' }}</div>
-            <div class="mb-2"><strong>Parent Phone:</strong> {{ client.parentPhone || '–' }}</div>
+            <div class="mb-2"><strong>Parent Phone:</strong> {{ formatPhoneForDisplay(client.parentPhone) || '–' }}</div>
             <div class="mb-2"><strong>Emergency Contact:</strong> {{ client.emergencyContactName || '–' }}</div>
-            <div class="mb-2"><strong>Emergency Phone:</strong> {{ client.emergencyContactPhone || '–' }}</div>
+            <div class="mb-2"><strong>Emergency Phone:</strong> {{ formatPhoneForDisplay(client.emergencyContactPhone) || '–' }}</div>
           </div>
         </v-sheet>
         <v-sheet class="rounded-lg mb-4 pa-4" border>
@@ -167,7 +168,7 @@ onMounted(async () => {
               <strong>Organization:</strong> {{ lookupOrg(client.organizationId) }}
             </div>
             <div v-if="client.organizationId" class="mb-2"><strong>Case Worker:</strong> {{ client.referralCaseWorker || '–' }}</div>
-            <div v-if="client.organizationId" class="mb-2"><strong>Referral Phone:</strong> {{ client.referralPhone || '–' }}</div>
+            <div v-if="client.organizationId" class="mb-2"><strong>Referral Phone:</strong> {{ formatPhoneForDisplay(client.referralPhone) || '–' }}</div>
           </div>
         </v-sheet>
         <v-sheet class="rounded-lg mb-4 pa-4" border>

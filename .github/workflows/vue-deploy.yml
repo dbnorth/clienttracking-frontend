@@ -1,0 +1,38 @@
+name: Deploy dev to AWS
+
+# deploy to AWS
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - main
+
+jobs:
+  aws-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: dev
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - run: |
+          touch .env
+          echo VITE_APP_CLIENT_URL=client-tracking.com >> .env
+          echo VITE_APP_SITE_URL=client-tracking.com >> .env
+
+      - run: npm install
+      - run: npm run build
+      - run: npm run bundle
+
+      - name: Deploy to Server
+        uses: easingthemes/ssh-deploy@main
+        with:
+          SSH_PRIVATE_KEY: ${{ secrets.SERVER_SSH_KEY }}
+          REMOTE_HOST: ec2-34-222-213-140.us-west-2.compute.amazonaws.com
+          REMOTE_USER: ubuntu
+          SOURCE: dist/
+          TARGET: /var/www/html/
+          ARGS: "-rltgoDzvO --delete"

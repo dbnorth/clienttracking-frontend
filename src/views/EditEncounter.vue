@@ -2,6 +2,7 @@
 import { ref, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import Utils from "../config/utils.js";
+import { formatPhoneForDisplay } from "../utils/phoneUtils.js";
 import EncounterServices from "../services/encounterServices";
 
 const router = useRouter();
@@ -86,7 +87,7 @@ onMounted(async () => {
           <strong>Client:</strong> {{ encounter.client ? getClientName(encounter.client) : `#${encounter.clientId}` }}
         </div>
         <div class="mt-1 text-body-2">
-          <strong>Phone:</strong> {{ encounter.client?.phone || "–" }}
+          <strong>Phone:</strong> {{ formatPhoneForDisplay(encounter.client?.phone) || "–" }}
         </div>
         <div class="mt-1 text-body-2">
           <strong>Date:</strong> {{ Utils.formatDate(encounter.date) }} &nbsp;|&nbsp;
@@ -106,8 +107,11 @@ onMounted(async () => {
           </v-col>
         </v-row>
       </v-form>
-      <v-btn color="success" class="mr-2" @click="save">Save</v-btn>
-      <v-btn color="error" @click="cancel">Cancel</v-btn>
+      <div class="d-flex align-center mt-4">
+        <v-spacer />
+        <v-btn variant="text" @click="cancel">Cancel</v-btn>
+        <v-btn color="primary" @click="save">Save</v-btn>
+      </div>
     </v-container>
   </div>
 </template>

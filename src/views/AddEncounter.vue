@@ -5,6 +5,7 @@ import ClientServices from "../services/clientServices";
 import ClientServiceServices from "../services/clientserviceServices";
 import LookupServices from "../services/lookupServices";
 import Utils from "../config/utils.js";
+import { formatPhoneForDisplay } from "../utils/phoneUtils.js";
 
 const router = useRouter();
 const message = ref("Select a client and mark services requested or provided.");
@@ -29,7 +30,7 @@ const formatNow = () => {
 
 const getClientLabel = (c) => {
   const name = [c.firstName, c.middleName, c.lastName].filter(Boolean).join(" ");
-  const phone = c.phone ? ` • ${c.phone}` : "";
+  const phone = c.phone ? ` • ${formatPhoneForDisplay(c.phone)}` : "";
   return name ? `${name}${phone}` : `#${c.id}`;
 };
 
@@ -337,11 +338,10 @@ onUnmounted(() => {
         </v-table>
       </v-sheet>
 
-      <div class="mt-4">
-        <v-btn color="success" class="mr-2" :disabled="!selectedClient || !hasSelection || saving" :loading="saving" @click="save">
-          Save
-        </v-btn>
-        <v-btn color="error" @click="cancel">Cancel</v-btn>
+      <div class="d-flex align-center mt-4">
+        <v-spacer />
+        <v-btn variant="text" @click="cancel">Cancel</v-btn>
+        <v-btn color="primary" :disabled="!selectedClient || !hasSelection || saving" :loading="saving" @click="save">Save</v-btn>
       </div>
     </v-container>
   </div>
