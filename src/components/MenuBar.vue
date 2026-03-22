@@ -113,7 +113,7 @@ watch(showUserUpdateDialog, (open) => {
 
 onMounted(() => {
   resetMenu();
-  loadTitle();
+  if (user.value) loadTitle();
 });
 
 watch(user, () => loadTitle(), { deep: true });

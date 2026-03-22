@@ -54,6 +54,7 @@ const LOOKUP_TYPES = [
   { value: "housing_type", label: "Housing Types" },
   { value: "benefit", label: "Benefits" },
   { value: "service_provided", label: "Services Provided" },
+  { value: "encounter_type", label: "Encounter Types" },
 ];
 
 const loadReferringOrgs = () => {

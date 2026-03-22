@@ -4,6 +4,7 @@ import { useRouter } from "vue-router";
 import Utils from "../config/utils.js";
 import { formatPhoneForDisplay } from "../utils/phoneUtils.js";
 import EncounterServices from "../services/encounterServices";
+import LookupServices from "../services/lookupServices";
 
 const router = useRouter();
 const props = defineProps({
@@ -12,7 +13,8 @@ const props = defineProps({
 });
 const message = ref("Edit encounter and click Save.");
 const encounter = ref(null);
-const record = ref({ notes: null });
+const record = ref({ notes: null, encounterTypeId: null });
+const encounterTypes = ref([]);
 
 const getClientName = (c) => {
   if (!c) return "–";
@@ -50,6 +52,7 @@ const save = () => {
     notes: record.value.notes,
     date: encounter.value?.date,
     time: encounter.value?.time ? String(encounter.value.time).slice(0, 5) : null,
+    encounterTypeId: record.value.encounterTypeId || null,
   };
   EncounterServices.update(props.clientId, props.id, payload)
     .then(() => router.push({ name: "encounters" }))
@@ -60,11 +63,18 @@ const cancel = () => router.push({ name: "encounters" });
 
 onMounted(async () => {
   try {
-    const res = await EncounterServices.getOne(props.clientId, props.id);
-    const enc = res.data;
+    const [encRes, typeRes] = await Promise.all([
+      EncounterServices.getOne(props.clientId, props.id),
+      LookupServices.getByType("encounter_type"),
+    ]);
+    encounterTypes.value = typeRes.data || [];
+    const enc = encRes.data;
     if (enc) {
       encounter.value = enc;
-      record.value = { notes: enc.notes || null };
+      record.value = {
+        notes: enc.notes || null,
+        encounterTypeId: enc.encounterTypeId ?? enc.encounterType?.id ?? null,
+      };
     }
   } catch (e) {
     message.value = e.response?.data?.message || "Error loading encounter.";
@@ -101,6 +111,19 @@ onMounted(async () => {
         </div>
       </v-sheet>
       <v-form>
+        <v-row>
+          <v-col cols="12" md="4">
+            <v-select
+              v-model="record.encounterTypeId"
+              :items="encounterTypes"
+              item-title="value"
+              item-value="id"
+              label="Encounter Type"
+              clearable
+              density="compact"
+            />
+          </v-col>
+        </v-row>
         <v-row>
           <v-col cols="12" md="8">
             <v-textarea v-model="record.notes" label="Notes" density="compact" rows="3" />

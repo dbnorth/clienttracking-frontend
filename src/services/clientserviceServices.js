@@ -3,6 +3,9 @@ import apiClient from "./services.js";
 export default {
   getAll(params = {}) {
     const { clientId, serviceProvidedId, date, status, userId, encounterId } = params;
+    if (clientId && !serviceProvidedId && !date && !status && !encounterId) {
+      return apiClient.get(`/clients/${clientId}/clientservices`);
+    }
     const queryParams = {};
     if (clientId) queryParams.clientId = clientId;
     if (serviceProvidedId) queryParams.serviceProvidedId = serviceProvidedId;
@@ -16,6 +19,7 @@ export default {
     const body = { items, userId: options.userId };
     if (options.notes != null) body.notes = options.notes;
     if (options.time != null) body.time = options.time;
+    if (options.encounterTypeId != null) body.encounterTypeId = options.encounterTypeId;
     return apiClient.post(`/clients/${clientId}/clientservices/bulk`, body);
   },
   create(clientId, data) {

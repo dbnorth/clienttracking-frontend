@@ -91,8 +91,10 @@ watch([filterClientId, filterServiceProvidedId, filterStatus, filterStatusDate],
 
 onMounted(async () => {
   try {
+    const orgId = user?.organizationId ?? user?.organization?.id;
+    const clientParams = orgId ? { organizationId: orgId } : { userId: user?.userId };
     const [clientsRes, servicesRes] = await Promise.all([
-      ClientServices.getAll({ userId: user?.userId }),
+      ClientServices.getAll(clientParams),
       LookupServices.getByType("service_provided"),
     ]);
     clients.value = clientsRes.data || [];

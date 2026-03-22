@@ -124,11 +124,11 @@ const saveClient = async () => {
   data.userId = user?.userId;
 
   ClientServices.create(data)
-    .then(() => router.push({ name: "clients" }))
+    .then(() => router.back())
     .catch((e) => (message.value = e.response?.data?.message || "Error saving"));
 };
 
-const cancel = () => router.push({ name: "clients" });
+const cancel = () => router.back();
 
 onMounted(() => loadLookups());
 </script>

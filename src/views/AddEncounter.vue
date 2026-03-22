@@ -19,6 +19,8 @@ const saving = ref(false);
 const searchTimeout = ref(null);
 const nowDisplay = ref("");
 const encounterNotes = ref("");
+const encounterTypeId = ref(null);
+const encounterTypes = ref([]);
 const clientServiceHistory = ref([]);
 
 const formatNow = () => {
@@ -54,11 +56,11 @@ const searchClients = (q) => {
     loading.value = true;
     try {
       const u = Utils.getStore("user");
-      const res = await ClientServices.getAll({
-        userId: u?.userId ?? u?.id,
-        name: query,
-        phone: query,
-      });
+      const orgId = u?.organizationId ?? u?.organization?.id;
+      const params = { name: query, phone: query };
+      if (orgId) params.organizationId = orgId;
+      else params.userId = u?.userId ?? u?.id;
+      const res = await ClientServices.getAll(params);
       clients.value = res.data || [];
     } catch {
       clients.value = [];
@@ -87,31 +89,56 @@ const getPendingRequestId = (serviceProvidedId) => {
   return records[0]?.id ?? null;
 };
 
+const toDateStr = (v) => {
+  if (v == null || v === "") return "";
+  const s = typeof v === "string" ? v : v instanceof Date ? v.toISOString() : String(v);
+  const match = s.match(/^(\d{4}-\d{2}-\d{2})/);
+  return match ? match[1] : "";
+};
+
 const getLastDateForService = (serviceProvidedId) => {
-  const records = clientServiceHistory.value.filter((r) => r.serviceProvidedId === serviceProvidedId);
+  const sid = serviceProvidedId != null ? Number(serviceProvidedId) : null;
+  const records = clientServiceHistory.value.filter(
+    (r) => r != null && (Number(r.serviceProvidedId) === sid || r.serviceProvidedId === serviceProvidedId)
+  );
   if (!records.length) return null;
   let lastProvided = null;
   let lastRequested = null;
   let lastCancelled = null;
   records.forEach((r) => {
-    if (r.providedDate) {
-      if (!lastProvided || r.providedDate > lastProvided) lastProvided = r.providedDate;
-    }
-    if (r.requestedDate) {
-      if (!lastRequested || r.requestedDate > lastRequested) lastRequested = r.requestedDate;
-    }
-    if (r.status === "cancelled" && r.cancelledDate) {
-      if (!lastCancelled || r.cancelledDate > lastCancelled) lastCancelled = r.cancelledDate;
+    const prov = toDateStr(r.providedDate ?? r.encounterProvided?.date);
+    if (prov) lastProvided = !lastProvided || prov > lastProvided ? prov : lastProvided;
+    const req = toDateStr(r.requestedDate ?? r.encounterRequested?.date);
+    if (req) lastRequested = !lastRequested || req > lastRequested ? req : lastRequested;
+    if (r.status === "cancelled") {
+      const canc = toDateStr(r.cancelledDate);
+      if (canc) lastCancelled = !lastCancelled || canc > lastCancelled ? canc : lastCancelled;
     }
   });
+  const typeOrder = { provided: 3, requested: 2, cancelled: 1 };
   const candidates = [
     lastProvided && { date: lastProvided, type: "provided", text: `Last provided: ${Utils.formatDate(lastProvided)}` },
     lastRequested && { date: lastRequested, type: "requested", text: `Last requested: ${Utils.formatDate(lastRequested)}` },
     lastCancelled && { date: lastCancelled, type: "cancelled", text: `Request cancelled: ${Utils.formatDate(lastCancelled)}` },
   ].filter(Boolean);
   if (!candidates.length) return null;
-  const latest = candidates.sort((a, b) => a.date.localeCompare(b.date)).pop();
+  const latest = candidates.sort((a, b) => {
+    if (a.date !== b.date) return a.date < b.date ? -1 : 1;
+    return (typeOrder[a.type] || 0) - (typeOrder[b.type] || 0);
+  }).pop();
   return { text: latest.text, type: latest.type };
+};
+
+const showsLastRequested = (serviceProvidedId) => getLastDateForService(serviceProvidedId)?.type === "requested";
+
+const getProvidedCount = (serviceProvidedId) => {
+  const sid = serviceProvidedId != null ? Number(serviceProvidedId) : null;
+  return clientServiceHistory.value.filter(
+    (r) =>
+      r != null &&
+      (Number(r.serviceProvidedId) === sid || r.serviceProvidedId === serviceProvidedId) &&
+      (r.status === "provided" || r.providedDate || r.encounterProvided?.date)
+  ).length;
 };
 
 watch(
@@ -132,6 +159,8 @@ watch(
 );
 
 const setRequested = (idx, val) => {
+  const svc = serviceSelections.value[idx];
+  if (showsLastRequested(svc?.id)) return;
   const arr = [...serviceSelections.value];
   arr[idx] = { ...arr[idx], requested: !!val };
   serviceSelections.value = arr;
@@ -139,12 +168,14 @@ const setRequested = (idx, val) => {
 
 const setProvided = (idx, val) => {
   const arr = [...serviceSelections.value];
+  const svc = arr[idx];
   const checked = !!val;
+  const shouldAutoCheckRequested = checked && !showsLastRequested(svc?.id);
   arr[idx] = {
-    ...arr[idx],
+    ...svc,
     provided: checked,
-    requested: checked ? true : arr[idx].requested,
-    cancelled: checked ? false : arr[idx].cancelled,
+    requested: shouldAutoCheckRequested ? true : svc.requested,
+    cancelled: checked ? false : svc.cancelled,
   };
   serviceSelections.value = arr;
 };
@@ -194,13 +225,14 @@ const save = async () => {
       byService.set(id, existing);
     });
   const items = Array.from(byService.entries()).map(([serviceProvidedId, flags]) => {
+    const hasPending = hasPendingRequest(serviceProvidedId);
     const item = {
       serviceProvidedId,
       requested: flags.requested,
       provided: flags.provided,
       cancel: flags.cancel,
     };
-    if ((flags.provided || flags.cancel) && hasPendingRequest(serviceProvidedId)) {
+    if ((item.provided || item.cancel) && hasPending) {
       item.existingClientServiceId = getPendingRequestId(serviceProvidedId);
     }
     return item;
@@ -208,8 +240,12 @@ const save = async () => {
   saving.value = true;
   message.value = "Saving...";
   try {
-    await ClientServiceServices.createBulk(clientId, items, { userId: uid, notes: encounterNotes.value || null });
-    router.push({ name: "encounters" });
+    await ClientServiceServices.createBulk(clientId, items, {
+      userId: uid,
+      notes: encounterNotes.value || null,
+      encounterTypeId: encounterTypeId.value || null,
+    });
+    router.back();
   } catch (e) {
     message.value = e.response?.data?.message || e.message || "Error saving. Check console for details.";
     console.error("Add Encounter save error:", e?.response?.data || e);
@@ -218,14 +254,18 @@ const save = async () => {
   }
 };
 
-const cancel = () => router.push({ name: "encounters" });
+const cancel = () => router.back();
 
 let nowInterval;
 onMounted(async () => {
   nowDisplay.value = formatNow();
   nowInterval = setInterval(() => { nowDisplay.value = formatNow(); }, 1000);
-  const res = await LookupServices.getByType("service_provided");
-  services.value = res.data || [];
+  const [svcRes, typeRes] = await Promise.all([
+    LookupServices.getByType("service_provided"),
+    LookupServices.getByType("encounter_type"),
+  ]);
+  services.value = svcRes.data || [];
+  encounterTypes.value = typeRes.data || [];
   serviceSelections.value = services.value.map((s) => ({
     id: s.id,
     value: s.value,
@@ -262,12 +302,23 @@ onUnmounted(() => {
           clearable
           hide-no-data
           density="compact"
+          no-filter
           @update:search="onSearchInput"
         >
           <template #selection>
             <span v-if="selectedClient">{{ getClientLabel(selectedClient) }}</span>
           </template>
         </v-autocomplete>
+        <v-select
+          v-model="encounterTypeId"
+          :items="encounterTypes"
+          item-title="value"
+          item-value="id"
+          label="Encounter Type"
+          clearable
+          density="compact"
+          class="mt-3"
+        />
         <v-textarea
           v-model="encounterNotes"
           label="Notes"
@@ -284,7 +335,7 @@ onUnmounted(() => {
         <v-table density="compact">
           <thead>
             <tr>
-              <th class="text-left">Services Provided</th>
+              <th></th>
               <th class="text-center" style="width: 120px">Requested</th>
               <th class="text-center" style="width: 120px">Provided</th>
               <th class="text-center" style="width: 100px">Cancel</th>
@@ -293,42 +344,48 @@ onUnmounted(() => {
           <tbody>
             <tr v-for="(svc, idx) in serviceSelections" :key="svc.id">
               <td>
-                {{ svc.value }}
+                <strong>{{ svc.value }}</strong> <span class="text-medium-emphasis">({{ getProvidedCount(svc.id) }} {{ getProvidedCount(svc.id) === 1 ? 'time' : 'times' }})</span>
                 <span v-if="getLastDateForService(svc.id)" class="text-caption text-medium-emphasis d-block">
                   {{ getLastDateForService(svc.id).text }}
                 </span>
               </td>
               <td class="text-center">
-                <v-checkbox
-                  :model-value="svc.requested"
-                  :disabled="hasPendingRequest(svc.id)"
+                <div class="d-flex justify-center">
+                  <v-checkbox
+                    :model-value="svc.requested"
+                  :disabled="showsLastRequested(svc.id)"
                   hide-details
                   density="compact"
                   color="primary"
                   @update:model-value="(v) => setRequested(idx, v)"
-                />
+                  />
+                </div>
               </td>
               <td class="text-center">
-                <v-checkbox
-                  :model-value="svc.provided"
+                <div class="d-flex justify-center">
+                  <v-checkbox
+                    :model-value="svc.provided"
                   :disabled="!!svc.cancelled"
                   hide-details
                   density="compact"
                   color="success"
                   @update:model-value="(v) => setProvided(idx, v)"
-                />
+                  />
+                </div>
               </td>
               <td class="text-center">
-                <v-checkbox
-                  v-if="hasPendingRequest(svc.id)"
+                <div class="d-flex justify-center">
+                  <v-checkbox
+                    v-if="hasPendingRequest(svc.id)"
                   :model-value="svc.cancelled"
                   :disabled="!!svc.provided"
                   hide-details
                   density="compact"
                   color="error"
                   @update:model-value="(v) => setCancel(idx, v)"
-                />
-                <span v-else class="text-caption text-disabled">—</span>
+                  />
+                  <span v-else class="text-caption text-disabled">—</span>
+                </div>
               </td>
             </tr>
             <tr v-if="!serviceSelections.length">
