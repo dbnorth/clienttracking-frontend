@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "cross-env APP_ENV=development vite",
     "build": "cross-env APP_ENV=production vite build",
+    "bundle": "mv .env dist",
     "preview": "vite preview"
   },
   "dependencies": {
