@@ -26,7 +26,7 @@ const showLookupDialog = ref(false);
 const showUserDialog = ref(false);
 const refOrgForm = ref({ id: null, name: "", caseWorkerName: "", phone: "", referringOrganizationTypeId: null });
 const orgForm = ref({ id: null, name: "", contactName: "", phoneNumber: "", street: "", city: "", state: "", zip: "", logoUrl: null, primaryColor: "#80162B" });
-const locationForm = ref({ id: null, organizationId: null, name: "", address: "", contactName: "", phoneNumber: "" });
+const locationForm = ref({ id: null, organizationId: null, name: "", address: "", city: "", state: "", zip: "", contactName: "", phoneNumber: "" });
 const lookupForm = ref({ id: null, type: "housing_location", value: "", sortOrder: 0, status: "Active" });
 const userForm = ref({ id: null, fName: "", lName: "", email: "", username: "", password: "", organizationId: null, role: "worker" });
 const userFormRef = ref(null);
@@ -310,7 +310,7 @@ const deleteOrg = (org) => {
 };
 
 const openAddLocation = () => {
-  locationForm.value = { id: null, organizationId: null, name: "", address: "", contactName: "", phoneNumber: "" };
+  locationForm.value = { id: null, organizationId: null, name: "", address: "", city: "", state: "", zip: "", contactName: "", phoneNumber: "" };
   showLocationDialog.value = true;
 };
 
@@ -320,6 +320,9 @@ const openEditLocation = (loc) => {
     organizationId: loc.organizationId,
     name: loc.name || "",
     address: loc.address || "",
+    city: loc.city || "",
+    state: loc.state || "",
+    zip: loc.zip || "",
     contactName: loc.contactName || "",
     phoneNumber: loc.phoneNumber || "",
   };
@@ -344,6 +347,9 @@ const saveLocation = () => {
     organizationId: locationForm.value.organizationId,
     name: locationForm.value.name.trim(),
     address: locationForm.value.address?.trim() || null,
+    city: locationForm.value.city?.trim() || null,
+    state: locationForm.value.state?.trim() || null,
+    zip: locationForm.value.zip?.trim() || null,
     contactName: locationForm.value.contactName?.trim() || null,
     phoneNumber: locationForm.value.phoneNumber?.trim() || null,
   };
@@ -572,6 +578,9 @@ onMounted(() => {
                   <th class="text-left">Organization</th>
                   <th class="text-left">Name</th>
                   <th class="text-left">Address</th>
+                  <th class="text-left">City</th>
+                  <th class="text-left">State</th>
+                  <th class="text-left">Zip</th>
                   <th class="text-left">Contact Name</th>
                   <th class="text-left">Phone Number</th>
                   <th class="text-left" width="120">Actions</th>
@@ -582,6 +591,9 @@ onMounted(() => {
                   <td>{{ loc.organization?.name || "–" }}</td>
                   <td>{{ loc.name }}</td>
                   <td>{{ loc.address || "–" }}</td>
+                  <td>{{ loc.city || "–" }}</td>
+                  <td>{{ loc.state || "–" }}</td>
+                  <td>{{ loc.zip || "–" }}</td>
                   <td>{{ loc.contactName || "–" }}</td>
                   <td>{{ formatPhoneForDisplay(loc.phoneNumber) || "–" }}</td>
                   <td>
@@ -590,7 +602,7 @@ onMounted(() => {
                   </td>
                 </tr>
                 <tr v-if="!locations.length">
-                  <td colspan="6" class="text-center text-medium-emphasis">No locations yet. Add one.</td>
+                  <td colspan="9" class="text-center text-medium-emphasis">No locations yet. Add one.</td>
                 </tr>
               </tbody>
             </v-table>
@@ -813,6 +825,17 @@ onMounted(() => {
           />
           <v-text-field v-model="locationForm.name" label="Name" />
           <v-text-field v-model="locationForm.address" label="Address" />
+          <v-row dense>
+            <v-col cols="12" sm="5">
+              <v-text-field v-model="locationForm.city" label="City" />
+            </v-col>
+            <v-col cols="12" sm="4">
+              <v-text-field v-model="locationForm.state" label="State" />
+            </v-col>
+            <v-col cols="12" sm="3">
+              <v-text-field v-model="locationForm.zip" label="Zip" />
+            </v-col>
+          </v-row>
           <v-text-field v-model="locationForm.contactName" label="Contact Name" />
           <PhoneInput v-model="locationForm.phoneNumber" label="Phone Number" />
         </v-card-text>
