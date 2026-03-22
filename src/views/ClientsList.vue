@@ -39,7 +39,8 @@ const getClientName = (c) => {
 };
 
 const retrieveClients = () => {
-  const params = { userId: user?.userId };
+  const orgId = user?.organizationId ?? user?.organization?.id;
+  const params = orgId ? { organizationId: orgId } : { userId: user?.userId };
   if (filterName.value) params.name = filterName.value;
   if (filterLocationId.value) params.intakeLocationId = filterLocationId.value;
   if (filterHousingLocationId.value) params.housingLocationId = filterHousingLocationId.value;

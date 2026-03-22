@@ -2,9 +2,10 @@ import apiClient from "./services.js";
 
 export default {
   getAll(params = {}) {
-    const { userId, name, phone, intakeLocationId, housingLocationId } = params;
+    const { userId, organizationId, name, phone, intakeLocationId, housingLocationId } = params;
     const queryParams = {};
-    if (userId) queryParams.userId = userId;
+    if (organizationId) queryParams.organizationId = organizationId;
+    else if (userId) queryParams.userId = userId;
     if (name) queryParams.name = name;
     if (phone) queryParams.phone = phone;
     if (intakeLocationId) queryParams.intakeLocationId = intakeLocationId;

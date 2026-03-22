@@ -60,7 +60,9 @@ watch(filterDate, () => retrieveEncounters());
 
 onMounted(async () => {
   try {
-    const r = await ClientServices.getAll({ userId: user?.userId });
+    const orgId = user?.organizationId ?? user?.organization?.id;
+    const params = orgId ? { organizationId: orgId } : { userId: user?.userId };
+    const r = await ClientServices.getAll(params);
     clients.value = r.data || [];
   } catch {
     clients.value = [];
@@ -116,6 +118,7 @@ onMounted(async () => {
               <th class="text-left">Client</th>
               <th class="text-left">Date</th>
               <th class="text-left">Time</th>
+              <th class="text-left">Type</th>
               <th class="text-left">Notes</th>
               <th class="text-left" width="120">Actions</th>
             </tr>
@@ -125,6 +128,7 @@ onMounted(async () => {
               <td>{{ getClientName(row.client) }}</td>
               <td>{{ Utils.formatDate(row.date) }}</td>
               <td>{{ getTimeDisplay(row) }}</td>
+              <td>{{ row.encounterType?.value || "–" }}</td>
               <td>{{ row.notes || "–" }}</td>
               <td>
                 <v-icon small class="mr-2" @click="viewEncounter(row)">mdi-eye</v-icon>
@@ -132,7 +136,7 @@ onMounted(async () => {
               </td>
             </tr>
             <tr v-if="!encounters.length">
-              <td colspan="5" class="text-center">No encounters. Add one to get started.</td>
+              <td colspan="6" class="text-center">No encounters. Add one to get started.</td>
             </tr>
           </tbody>
         </v-table>

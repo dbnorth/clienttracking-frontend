@@ -115,6 +115,7 @@ onMounted(async () => {
           <div class="mt-3 text-body-2">
             <strong>Date:</strong> {{ Utils.formatDate(encounter.date) }} &nbsp;|&nbsp;
             <strong>Time:</strong> {{ getTimeDisplay(encounter) }}
+            <span v-if="encounter.encounterType?.value"> &nbsp;|&nbsp; <strong>Type:</strong> {{ encounter.encounterType.value }}</span>
           </div>
           <div class="mt-2 text-body-2">
             <strong>Location:</strong> {{ getLocationDisplay(encounter.client?.intakeLocation) }}
