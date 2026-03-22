@@ -3,6 +3,7 @@ import ClientServices from "../services/clientServices";
 import LocationServices from "../services/locationServices";
 import LookupServices from "../services/lookupServices";
 import Utils from "../config/utils.js";
+import { formatPhoneForDisplay } from "../utils/phoneUtils.js";
 import { ref, computed, onMounted, watch } from "vue";
 import { useRouter } from "vue-router";
 
@@ -127,7 +128,7 @@ onMounted(() => {
           <tbody>
             <tr v-for="item in clients" :key="item.id">
               <td>{{ getClientName(item) }}</td>
-              <td>{{ item.phone }}</td>
+              <td>{{ formatPhoneForDisplay(item.phone) || "–" }}</td>
               <td>{{ item.intakeLocation ? (item.intakeLocation.organization ? `${item.intakeLocation.organization.name} – ${item.intakeLocation.name}` : item.intakeLocation.name) : "–" }}</td>
               <td>
                 <v-chip :color="item.status === 'Active' ? 'success' : item.status === 'Deceased' ? 'grey' : 'warning'" size="small">

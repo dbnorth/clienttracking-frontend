@@ -1,5 +1,11 @@
 <script setup>
-import { watch, computed } from "vue";
+import { watch, computed, ref } from "vue";
+import PhoneInput from "./PhoneInput.vue";
+
+const formRef = ref(null);
+const requiredText = [(v) => !!v?.trim() || "Required"];
+const requiredSelect = [(v) => (v != null && v !== "") || "Required"];
+const requiredDate = [(v) => !!v || "Required"];
 
 const props = defineProps({
   modelValue: { type: Object, required: true },
@@ -97,34 +103,66 @@ watch(
     }
   }
 );
+
+const validate = () => formRef.value?.validate();
+defineExpose({ validate });
 </script>
 
 <template>
-  <v-form>
+  <v-form ref="formRef" validate-on="submit lazy">
+    <div class="text-caption text-medium-emphasis mb-3">* required field</div>
     <!-- Client Info -->
     <v-sheet class="rounded-lg mb-4 pa-0 overflow-hidden" border>
       <div class="text-subtitle-1 pa-3 bg-grey-lighten-3 font-weight-medium">Client Info</div>
       <div class="pa-4">
         <v-row>
           <v-col cols="12" md="3">
-            <v-text-field v-model="modelValue.firstName" label="First Name" :readonly="readOnly" @update:model-value="(v) => $emit('update:modelValue', { ...modelValue, firstName: v })" density="compact" />
+            <v-text-field
+              v-model="modelValue.firstName"
+              label="First Name *"
+              :readonly="readOnly"
+              :rules="readOnly ? [] : requiredText"
+              density="compact"
+              @update:model-value="(v) => $emit('update:modelValue', { ...modelValue, firstName: v })"
+            />
           </v-col>
           <v-col cols="12" md="2">
             <v-text-field v-model="modelValue.middleName" label="Middle" :readonly="readOnly" density="compact" />
           </v-col>
           <v-col cols="12" md="3">
-            <v-text-field v-model="modelValue.lastName" label="Last Name" :readonly="readOnly" density="compact" />
+            <v-text-field
+              v-model="modelValue.lastName"
+              label="Last Name *"
+              :readonly="readOnly"
+              :rules="readOnly ? [] : requiredText"
+              density="compact"
+              @update:model-value="(v) => $emit('update:modelValue', { ...modelValue, lastName: v })"
+            />
           </v-col>
           <v-col cols="12" md="2">
             <v-text-field v-model="modelValue.suffix" label="Suffix" :readonly="readOnly" density="compact" />
           </v-col>
           <v-col cols="12" md="2">
-            <v-text-field v-model="modelValue.birthdate" type="date" label="Birthdate" :readonly="readOnly" density="compact" />
+            <v-text-field
+              v-model="modelValue.birthdate"
+              type="date"
+              label="Birthdate *"
+              :readonly="readOnly"
+              :rules="readOnly ? [] : requiredDate"
+              density="compact"
+              @update:model-value="(v) => $emit('update:modelValue', { ...modelValue, birthdate: v })"
+            />
           </v-col>
         </v-row>
         <v-row>
           <v-col cols="12" md="4">
-            <v-text-field v-model="modelValue.phone" label="Client Phone" :readonly="readOnly" density="compact" />
+            <PhoneInput
+              :model-value="modelValue.phone"
+              label="Client Phone *"
+              :readonly="readOnly"
+              required
+              @update:model-value="$emit('update:modelValue', { ...modelValue, phone: $event })"
+            />
           </v-col>
           <v-col cols="12" md="3">
             <v-select v-model="modelValue.housingTypeId" :items="housingTypes" item-title="value" item-value="id"
@@ -140,16 +178,40 @@ watch(
         </v-row>
         <v-row v-if="showHousingAddress">
           <v-col cols="12" md="6">
-            <v-text-field v-model="modelValue.housingStreet" label="Street" :readonly="readOnly" density="compact" />
+            <v-text-field
+              v-model="modelValue.housingStreet"
+              label="Street *"
+              :readonly="readOnly"
+              :rules="readOnly ? [] : requiredText"
+              density="compact"
+            />
           </v-col>
           <v-col cols="12" md="2">
-            <v-text-field v-model="modelValue.housingCity" label="City" :readonly="readOnly" density="compact" />
+            <v-text-field
+              v-model="modelValue.housingCity"
+              label="City *"
+              :readonly="readOnly"
+              :rules="readOnly ? [] : requiredText"
+              density="compact"
+            />
           </v-col>
           <v-col cols="12" md="2">
-            <v-text-field v-model="modelValue.housingState" label="State" :readonly="readOnly" density="compact" />
+            <v-text-field
+              v-model="modelValue.housingState"
+              label="State *"
+              :readonly="readOnly"
+              :rules="readOnly ? [] : requiredText"
+              density="compact"
+            />
           </v-col>
           <v-col cols="12" md="2">
-            <v-text-field v-model="modelValue.housingZip" label="Zip" :readonly="readOnly" density="compact" />
+            <v-text-field
+              v-model="modelValue.housingZip"
+              label="Zip *"
+              :readonly="readOnly"
+              :rules="readOnly ? [] : requiredText"
+              density="compact"
+            />
           </v-col>
         </v-row>
       </div>
@@ -167,15 +229,33 @@ watch(
             <v-text-field v-model="modelValue.parentLastName" label="Parent Last Name" :readonly="readOnly" density="compact" />
           </v-col>
           <v-col cols="12" md="3">
-            <v-text-field v-model="modelValue.parentPhone" label="Parent Phone" :readonly="readOnly" density="compact" />
+            <PhoneInput
+              :model-value="modelValue.parentPhone"
+              @update:model-value="$emit('update:modelValue', { ...modelValue, parentPhone: $event })"
+              label="Parent Phone"
+              :readonly="readOnly"
+            />
           </v-col>
         </v-row>
         <v-row>
           <v-col cols="12" md="6">
-            <v-text-field v-model="modelValue.emergencyContactName" label="Emergency Contact Name" :readonly="readOnly" density="compact" />
+            <v-text-field
+              v-model="modelValue.emergencyContactName"
+              label="Emergency Contact Name *"
+              :readonly="readOnly"
+              :rules="readOnly ? [] : requiredText"
+              density="compact"
+              @update:model-value="(v) => $emit('update:modelValue', { ...modelValue, emergencyContactName: v })"
+            />
           </v-col>
           <v-col cols="12" md="6">
-            <v-text-field v-model="modelValue.emergencyContactPhone" label="Emergency Contact Phone" :readonly="readOnly" density="compact" />
+            <PhoneInput
+              :model-value="modelValue.emergencyContactPhone"
+              label="Emergency Contact Phone *"
+              :readonly="readOnly"
+              required
+              @update:model-value="$emit('update:modelValue', { ...modelValue, emergencyContactPhone: $event })"
+            />
           </v-col>
         </v-row>
       </div>
@@ -216,8 +296,17 @@ watch(
               label="Referral Type" clearable :readonly="readOnly" density="compact" />
           </v-col>
           <v-col v-if="showReferringOrganization" cols="12" md="4">
-            <v-select v-model="modelValue.organizationId" :items="organizations" item-title="name" item-value="id"
-              label="Referring Organization" clearable :readonly="readOnly" density="compact" />
+            <v-select
+              v-model="modelValue.organizationId"
+              :items="organizations"
+              item-title="name"
+              item-value="id"
+              label="Referring Organization *"
+              :rules="readOnly || !showReferringOrganization ? [] : requiredSelect"
+              clearable
+              :readonly="readOnly"
+              density="compact"
+            />
           </v-col>
         </v-row>
         <v-row v-if="showReferralContact">
@@ -225,7 +314,12 @@ watch(
             <v-text-field v-model="modelValue.referralCaseWorker" label="Case Worker" :readonly="readOnly" density="compact" />
           </v-col>
           <v-col cols="12" md="4">
-            <v-text-field v-model="modelValue.referralPhone" label="Phone" :readonly="readOnly" density="compact" />
+            <PhoneInput
+              :model-value="modelValue.referralPhone"
+              @update:model-value="$emit('update:modelValue', { ...modelValue, referralPhone: $event })"
+              label="Phone"
+              :readonly="readOnly"
+            />
           </v-col>
         </v-row>
       </div>
@@ -262,7 +356,8 @@ watch(
               :items="intakeLocationsWithLabel"
               item-title="displayName"
               item-value="id"
-              label="Intake Location"
+              label="Intake Location *"
+              :rules="readOnly ? [] : requiredSelect"
               clearable
               :readonly="readOnly"
               density="compact"
