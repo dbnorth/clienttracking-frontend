@@ -4,13 +4,12 @@ import LocationServices from "../services/locationServices";
 import LookupServices from "../services/lookupServices";
 import Utils from "../config/utils.js";
 import { formatPhoneForDisplay } from "../utils/phoneUtils.js";
-import { ref, computed, onMounted, watch, nextTick } from "vue";
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from "vue";
 import { useRouter } from "vue-router";
 
 const router = useRouter();
 const clients = ref([]);
 const intakeLocations = ref([]);
-const user = Utils.getStore("user");
 const message = ref("Search, Edit or View Clients");
 const filterName = ref("");
 const filterLocationId = ref(null);
@@ -134,8 +133,7 @@ const uploadPhotoBlob = async (blobOrFile) => {
 };
 
 const retrieveClients = () => {
-  const orgId = user?.organizationId ?? user?.organization?.id;
-  const params = orgId ? { organizationId: orgId } : { userId: user?.userId };
+  const params = { ...Utils.getClientListQueryParams(Utils.getStore("user")) };
   if (filterName.value) params.name = filterName.value;
   if (filterLocationId.value) params.intakeLocationId = filterLocationId.value;
   if (filterHousingLocationId.value) params.housingLocationId = filterHousingLocationId.value;
@@ -174,10 +172,16 @@ watch(filterName, () => {
   nameFilterTimeout = setTimeout(() => retrieveClients(), 400);
 });
 
+const onUserUpdated = () => retrieveClients();
+
 onMounted(() => {
   loadLocations();
   loadHousingLocations();
   retrieveClients();
+  window.addEventListener("user-updated", onUserUpdated);
+});
+onUnmounted(() => {
+  window.removeEventListener("user-updated", onUserUpdated);
 });
 </script>
 

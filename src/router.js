@@ -41,7 +41,7 @@ router.beforeEach((to, _from, next) => {
     next({ name: "login" });
   } else if (user?.role === "none" && to.name !== "home" && to.name !== "login") {
     next({ name: "home" });
-  } else if (to.name === "admin" && user?.role !== "admin") {
+  } else if (to.name === "admin" && user?.role !== "admin" && user?.role !== "superadmin") {
     next({ name: "home" });
   } else {
     next();

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, watch } from "vue";
+import { ref, computed, onMounted, onUnmounted, watch } from "vue";
 import Utils from "../config/utils.js";
 import ClientServiceServices from "../services/clientserviceServices";
 import ClientServices from "../services/clientServices";
@@ -7,7 +7,6 @@ import LookupServices from "../services/lookupServices";
 import ViewEncounter from "./ViewEncounter.vue";
 import ViewClient from "./ViewClient.vue";
 
-const user = Utils.getStore("user");
 const services = ref([]);
 const clients = ref([]);
 const serviceTypes = ref([]);
@@ -41,8 +40,7 @@ const getStatusDate = (row) => {
 };
 
 const retrieveServices = () => {
-  const orgId = user?.organizationId ?? user?.organization?.id;
-  const params = orgId ? { organizationId: orgId } : { userId: user?.userId };
+  const params = { ...Utils.getClientListQueryParams(Utils.getStore("user")) };
   if (filterClientId.value) params.clientId = filterClientId.value;
   if (filterServiceProvidedId.value) params.serviceProvidedId = filterServiceProvidedId.value;
   if (filterStatus.value) params.status = filterStatus.value;
@@ -90,10 +88,9 @@ const clearFilters = () => {
 
 watch([filterClientId, filterServiceProvidedId, filterStatus, filterStatusDate], () => retrieveServices());
 
-onMounted(async () => {
+const loadClientsAndTypes = async () => {
   try {
-    const orgId = user?.organizationId ?? user?.organization?.id;
-    const clientParams = orgId ? { organizationId: orgId } : { userId: user?.userId };
+    const clientParams = { ...Utils.getClientListQueryParams(Utils.getStore("user")) };
     const [clientsRes, servicesRes] = await Promise.all([
       ClientServices.getAll(clientParams),
       LookupServices.getByType("service_provided"),
@@ -104,7 +101,20 @@ onMounted(async () => {
     clients.value = [];
     serviceTypes.value = [];
   }
+};
+
+const onUserUpdated = () => {
+  loadClientsAndTypes();
   retrieveServices();
+};
+
+onMounted(async () => {
+  await loadClientsAndTypes();
+  retrieveServices();
+  window.addEventListener("user-updated", onUserUpdated);
+});
+onUnmounted(() => {
+  window.removeEventListener("user-updated", onUserUpdated);
 });
 </script>
 

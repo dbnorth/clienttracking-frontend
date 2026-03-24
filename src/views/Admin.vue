@@ -1,5 +1,6 @@
 <script setup>
-import { ref, onMounted, watch } from "vue";
+import { ref, computed, onMounted, onUnmounted, watch } from "vue";
+import Utils from "../config/utils.js";
 import ReferringOrganizationServices from "../services/referringOrganizationServices";
 import OrganizationServices from "../services/organizationServices";
 import LookupServices from "../services/lookupServices";
@@ -17,6 +18,8 @@ const organizations = ref([]);
 const locations = ref([]);
 const lookups = ref([]);
 const selectedLookupType = ref("housing_location");
+/** List Values tab: org filter (superadmin can change; others follow user org). */
+const selectedListValuesOrgId = ref(null);
 const users = ref([]);
 
 const showRefOrgDialog = ref(false);
@@ -27,7 +30,14 @@ const showUserDialog = ref(false);
 const refOrgForm = ref({ id: null, name: "", caseWorkerName: "", phone: "", referringOrganizationTypeId: null });
 const orgForm = ref({ id: null, name: "", contactName: "", phoneNumber: "", street: "", city: "", state: "", zip: "", logoUrl: null, primaryColor: "#80162B" });
 const locationForm = ref({ id: null, organizationId: null, name: "", address: "", city: "", state: "", zip: "", contactName: "", phoneNumber: "" });
-const lookupForm = ref({ id: null, type: "housing_location", value: "", sortOrder: 0, status: "Active" });
+const lookupForm = ref({
+  id: null,
+  type: "housing_location",
+  value: "",
+  sortOrder: 0,
+  status: "Active",
+  organizationId: null,
+});
 const userForm = ref({ id: null, fName: "", lName: "", email: "", username: "", password: "", organizationId: null, role: "worker" });
 const userFormRef = ref(null);
 const requiredText = [(v) => !!v?.trim() || "Required"];
@@ -36,11 +46,67 @@ const passwordRule = (isAdd) => [
   ...(isAdd ? [(v) => !!v?.trim() || "Required"] : []),
   (v) => !v || v.length >= 8 || "Min 8 characters",
 ];
-const ROLE_OPTIONS = [
-  { title: "Admin", value: "admin" },
-  { title: "Worker", value: "worker" },
-  { title: "None", value: "none" },
-];
+const currentUser = ref(Utils.getStore("user"));
+const refreshCurrentUser = () => {
+  currentUser.value = Utils.getStore("user");
+  const u = currentUser.value;
+  if (u?.role !== "superadmin") {
+    selectedListValuesOrgId.value = userOrganizationId.value ?? null;
+    return;
+  }
+  if (u?.actingOrganizationId != null && u.actingOrganizationId !== "") {
+    selectedListValuesOrgId.value = u.actingOrganizationId;
+  }
+};
+const isSuperAdmin = computed(() => currentUser.value?.role === "superadmin");
+const userOrganizationId = computed(
+  () => currentUser.value?.organizationId ?? currentUser.value?.organization?.id ?? null
+);
+/** Superadmin: all orgs; others: only the signed-in admin's org (single option). Used for locations and users. */
+const organizationsForTenantSelect = computed(() => {
+  const all = organizations.value || [];
+  if (isSuperAdmin.value) return all;
+  const oid = userOrganizationId.value;
+  if (oid == null) return [];
+  const match = all.find((o) => o.id === oid);
+  if (match) return [match];
+  const name = currentUser.value?.organization?.name || "Organization";
+  return [{ id: oid, name }];
+});
+const locationOrganizationHint = computed(() =>
+  isSuperAdmin.value ? "Choose which organization this location belongs to." : "This location is for your organization."
+);
+const userOrganizationHint = computed(() =>
+  isSuperAdmin.value ? "Choose which organization this user belongs to." : "Users are managed in your organization."
+);
+const lookupOrganizationHint = computed(() =>
+  isSuperAdmin.value ? "Choose which organization owns this list value." : "List values are for your organization."
+);
+const listValuesOrgFilterHint = computed(() =>
+  isSuperAdmin.value ? "Show list values for the selected organization." : "List values for your organization."
+);
+/** Target org for starter set: superadmin “act as” first, then List Values org, then home org. */
+const starterSetTargetOrganizationId = computed(() => {
+  const u = currentUser.value;
+  if (!u) return null;
+  if (u.role === "superadmin") {
+    if (u.actingOrganizationId != null && u.actingOrganizationId !== "") return u.actingOrganizationId;
+    if (selectedListValuesOrgId.value != null) return selectedListValuesOrgId.value;
+    return userOrganizationId.value ?? null;
+  }
+  return userOrganizationId.value ?? null;
+});
+const roleOptions = computed(() => {
+  const base = [
+    { title: "Admin", value: "admin" },
+    { title: "Worker", value: "worker" },
+    { title: "None", value: "none" },
+  ];
+  if (isSuperAdmin.value) {
+    return [{ title: "Superadmin", value: "superadmin" }, ...base];
+  }
+  return base;
+});
 
 const LOOKUP_TYPES = [
   { value: "referring_organization_type", label: "Referring Organization Types" },
@@ -64,9 +130,11 @@ const loadReferringOrgs = () => {
 };
 
 const loadOrganizations = () => {
-  OrganizationServices.getAll()
+  return OrganizationServices.getAll()
     .then((r) => (organizations.value = r.data))
-    .catch((e) => (message.value = e.response?.data?.message || "Error loading"));
+    .catch((e) => {
+      message.value = e.response?.data?.message || "Error loading";
+    });
 };
 
 const loadLocations = () => {
@@ -88,11 +156,21 @@ const loadUsers = () => {
 };
 
 const openAddUser = () => {
-  userForm.value = { id: null, fName: "", lName: "", email: "", username: "", password: "", organizationId: null, role: "worker" };
+  userForm.value = {
+    id: null,
+    fName: "",
+    lName: "",
+    email: "",
+    username: "",
+    password: "",
+    organizationId: isSuperAdmin.value ? null : userOrganizationId.value,
+    role: "worker",
+  };
   showUserDialog.value = true;
 };
 
 const openEditUser = (u) => {
+  const orgId = u.organizationId ?? u.organization?.id ?? null;
   userForm.value = {
     id: u.id,
     fName: u.fName || "",
@@ -100,7 +178,7 @@ const openEditUser = (u) => {
     email: u.email || "",
     username: u.username || "",
     password: "",
-    organizationId: u.organizationId ?? u.organization?.id ?? null,
+    organizationId: isSuperAdmin.value ? orgId : userOrganizationId.value ?? orgId,
     role: u.role || "worker",
   };
   showUserDialog.value = true;
@@ -117,6 +195,9 @@ const saveUser = async () => {
     organizationId: userForm.value.organizationId || null,
     role: userForm.value.role || "worker",
   };
+  if (!isSuperAdmin.value && userOrganizationId.value != null) {
+    data.organizationId = userOrganizationId.value;
+  }
   if (userForm.value.password) data.password = userForm.value.password;
   if (userForm.value.id) {
     UserServices.update(userForm.value.id, data)
@@ -136,7 +217,11 @@ const saveUser = async () => {
 };
 
 const filteredLookups = () => {
-  return lookups.value.filter((l) => l.type === selectedLookupType.value);
+  let list = lookups.value.filter((l) => l.type === selectedLookupType.value);
+  if (isSuperAdmin.value && selectedListValuesOrgId.value != null) {
+    list = list.filter((l) => Number(l.organizationId) === Number(selectedListValuesOrgId.value));
+  }
+  return list;
 };
 
 watch(selectedLookupType, () => {
@@ -310,7 +395,17 @@ const deleteOrg = (org) => {
 };
 
 const openAddLocation = () => {
-  locationForm.value = { id: null, organizationId: null, name: "", address: "", city: "", state: "", zip: "", contactName: "", phoneNumber: "" };
+  locationForm.value = {
+    id: null,
+    organizationId: isSuperAdmin.value ? null : userOrganizationId.value,
+    name: "",
+    address: "",
+    city: "",
+    state: "",
+    zip: "",
+    contactName: "",
+    phoneNumber: "",
+  };
   showLocationDialog.value = true;
 };
 
@@ -353,6 +448,9 @@ const saveLocation = () => {
     contactName: locationForm.value.contactName?.trim() || null,
     phoneNumber: locationForm.value.phoneNumber?.trim() || null,
   };
+  if (!isSuperAdmin.value && userOrganizationId.value != null) {
+    data.organizationId = userOrganizationId.value;
+  }
   if (locationForm.value.id) {
     LocationServices.update(locationForm.value.id, data)
       .then(() => {
@@ -384,12 +482,26 @@ const nextSortOrder = () => {
 };
 
 const openAddLookup = () => {
-  lookupForm.value = { id: null, type: selectedLookupType.value, value: "", sortOrder: nextSortOrder(), status: "Active" };
+  lookupForm.value = {
+    id: null,
+    type: selectedLookupType.value,
+    value: "",
+    sortOrder: nextSortOrder(),
+    status: "Active",
+    organizationId: isSuperAdmin.value
+      ? selectedListValuesOrgId.value ?? userOrganizationId.value
+      : userOrganizationId.value,
+  };
   showLookupDialog.value = true;
 };
 
 const openEditLookup = (item) => {
-  lookupForm.value = { ...item };
+  lookupForm.value = {
+    ...item,
+    organizationId: isSuperAdmin.value
+      ? item.organizationId ?? item.organization?.id ?? null
+      : userOrganizationId.value ?? item.organizationId ?? item.organization?.id ?? null,
+  };
   showLookupDialog.value = true;
 };
 
@@ -398,12 +510,20 @@ const saveLookup = () => {
     message.value = "Value is required.";
     return;
   }
+  if (isSuperAdmin.value && (lookupForm.value.organizationId == null || lookupForm.value.organizationId === "")) {
+    message.value = "Organization is required.";
+    return;
+  }
   const data = {
     type: lookupForm.value.type,
     value: lookupForm.value.value.trim(),
     sortOrder: parseInt(lookupForm.value.sortOrder, 10) || 0,
     status: lookupForm.value.status || "Active",
+    organizationId: lookupForm.value.organizationId,
   };
+  if (!isSuperAdmin.value && userOrganizationId.value != null) {
+    data.organizationId = userOrganizationId.value;
+  }
   if (lookupForm.value.id) {
     LookupServices.update(lookupForm.value.id, data)
       .then(() => {
@@ -426,6 +546,43 @@ const deleteLookup = (item) => {
   LookupServices.delete(item.id)
     .then(() => loadLookups())
     .catch((e) => (message.value = e.response?.data?.message || "Error deleting"));
+};
+
+const loadStarterLookupsLoading = ref(false);
+const loadStarterLookups = () => {
+  const oid = starterSetTargetOrganizationId.value;
+  if (oid == null) {
+    message.value = "Select an organization in the List Values tab (or use Act as organization as superadmin).";
+    return;
+  }
+  const orgName =
+    organizations.value?.find((o) => Number(o.id) === Number(oid))?.name || `organization #${oid}`;
+  if (
+    !confirm(
+      `Load default list values (race, ethnicity, referral types, genders, encounter types, housing types, benefits, drugs of choice, referring org types, initial situations) and a sample referring organization for "${orgName}"? Existing entries with the same name are skipped.`
+    )
+  ) {
+    return;
+  }
+  message.value = "";
+  successMessage.value = "";
+  loadStarterLookupsLoading.value = true;
+  LookupServices.seedStarterSet(isSuperAdmin.value ? oid : undefined)
+    .then((r) => {
+      const d = r.data || {};
+      loadLookups();
+      loadReferringOrgs();
+      successMessage.value =
+        d.message ||
+        `Added ${d.lookupsCreated ?? 0} list values; skipped ${d.lookupsSkipped ?? 0} duplicates. Referring orgs: ${d.referringOrganizationsCreated ?? 0} added, ${d.referringOrganizationsSkipped ?? 0} skipped.`;
+      setTimeout(() => {
+        successMessage.value = "";
+      }, 6000);
+    })
+    .catch((e) => (message.value = e.response?.data?.message || "Error loading starter set"))
+    .finally(() => {
+      loadStarterLookupsLoading.value = false;
+    });
 };
 
 const sortAlphaAndRenumber = ref(false);
@@ -462,11 +619,23 @@ const sortAndRenumberLookups = async () => {
 };
 
 onMounted(() => {
+  refreshCurrentUser();
+  window.addEventListener("user-updated", refreshCurrentUser);
   loadReferringOrgs();
-  loadOrganizations();
+  loadOrganizations().then(() => {
+    if (selectedListValuesOrgId.value != null) return;
+    if (isSuperAdmin.value) {
+      selectedListValuesOrgId.value =
+        userOrganizationId.value ?? organizations.value?.[0]?.id ?? null;
+    }
+  });
   loadLocations();
   loadLookups();
   loadUsers();
+});
+
+onUnmounted(() => {
+  window.removeEventListener("user-updated", refreshCurrentUser);
 });
 </script>
 
@@ -500,6 +669,7 @@ onMounted(() => {
               <thead>
                 <tr>
                   <th class="text-left">Name</th>
+                  <th class="text-left">Organization</th>
                   <th class="text-left">Type</th>
                   <th class="text-left">Case Worker</th>
                   <th class="text-left">Phone</th>
@@ -509,6 +679,7 @@ onMounted(() => {
               <tbody>
                 <tr v-for="org in referringOrgs" :key="org.id">
                   <td>{{ org.name }}</td>
+                  <td>{{ org.organization?.name || "–" }}</td>
                   <td>{{ org.referringOrganizationType?.value || "–" }}</td>
                   <td>{{ org.caseWorkerName || "–" }}</td>
                   <td>{{ formatPhoneForDisplay(org.phone) || "–" }}</td>
@@ -518,7 +689,7 @@ onMounted(() => {
                   </td>
                 </tr>
                 <tr v-if="!referringOrgs.length">
-                  <td colspan="5" class="text-center text-medium-emphasis">No referring organizations yet. Add one.</td>
+                  <td colspan="6" class="text-center text-medium-emphasis">No referring organizations yet. Add one.</td>
                 </tr>
               </tbody>
             </v-table>
@@ -531,7 +702,7 @@ onMounted(() => {
           <v-card-title class="d-flex align-center">
             Organizations
             <v-spacer />
-            <v-btn color="primary" size="small" @click="openAddOrg">Add Organization</v-btn>
+            <v-btn v-if="isSuperAdmin" color="primary" size="small" @click="openAddOrg">Add Organization</v-btn>
           </v-card-title>
           <v-card-text>
             <v-table>
@@ -552,11 +723,14 @@ onMounted(() => {
                   <td>{{ [org.street, org.city, org.state, org.zip].filter(Boolean).join(", ") || "–" }}</td>
                   <td>
                     <v-icon small class="mr-2" @click="openEditOrg(org)">mdi-pencil</v-icon>
-                    <v-icon small @click="deleteOrg(org)">mdi-trash-can</v-icon>
+                    <v-icon v-if="isSuperAdmin" small @click="deleteOrg(org)">mdi-trash-can</v-icon>
                   </td>
                 </tr>
                 <tr v-if="!organizations.length">
-                  <td colspan="5" class="text-center text-medium-emphasis">No organizations yet. Add one.</td>
+                  <td colspan="5" class="text-center text-medium-emphasis">
+                    <template v-if="isSuperAdmin">No organizations yet. Add one.</template>
+                    <template v-else>No organizations yet. Only a superadmin can add or delete organizations.</template>
+                  </td>
                 </tr>
               </tbody>
             </v-table>
@@ -569,7 +743,13 @@ onMounted(() => {
           <v-card-title class="d-flex align-center">
             Locations
             <v-spacer />
-            <v-btn color="primary" size="small" @click="openAddLocation">Add Location</v-btn>
+            <v-btn
+              color="primary"
+              size="small"
+              :disabled="!isSuperAdmin && !userOrganizationId"
+              @click="openAddLocation"
+              >Add Location</v-btn
+            >
           </v-card-title>
           <v-card-text>
             <v-table>
@@ -612,31 +792,63 @@ onMounted(() => {
 
       <v-window-item value="lookups">
         <v-card>
-          <v-card-title class="d-flex align-center flex-wrap">
-            <v-select
-              v-model="selectedLookupType"
-              :items="LOOKUP_TYPES"
-              item-title="label"
-              item-value="value"
-              density="compact"
-              hide-details
-              class="mr-4"
-              style="max-width: 220px"
-            />
-            <v-spacer />
-            <v-btn
-              color="primary"
-              size="default"
-              class="mr-2"
-              :loading="sortAlphaAndRenumber"
-              :disabled="!filteredLookups().length || sortAlphaAndRenumber"
-              @click="sortAndRenumberLookups"
-            >
-              <v-icon start>mdi-sort-alphabetical-ascending</v-icon>
-              Sort A–Z &amp; Renumber
-            </v-btn>
-            <v-btn color="primary" size="default" @click="openAddLookup">Add</v-btn>
-          </v-card-title>
+          <v-card-text class="pt-4">
+            <div class="d-flex flex-wrap align-end ga-3 mb-4">
+              <v-select
+                v-model="selectedListValuesOrgId"
+                :items="organizationsForTenantSelect"
+                item-title="name"
+                item-value="id"
+                label="Organization"
+                density="compact"
+                :disabled="!isSuperAdmin"
+                :hint="listValuesOrgFilterHint"
+                persistent-hint
+                class="flex-grow-1"
+                style="max-width: 400px; min-width: 220px"
+              />
+            </div>
+            <div class="d-flex flex-wrap align-center ga-2 mb-2">
+              <v-select
+                v-model="selectedLookupType"
+                :items="LOOKUP_TYPES"
+                item-title="label"
+                item-value="value"
+                density="compact"
+                hide-details
+                style="max-width: 260px; min-width: 200px"
+              />
+              <v-spacer class="d-none d-sm-block" />
+              <v-btn
+                color="primary"
+                variant="flat"
+                size="default"
+                :loading="loadStarterLookupsLoading"
+                :disabled="loadStarterLookupsLoading || starterSetTargetOrganizationId == null"
+                @click="loadStarterLookups"
+              >
+                <v-icon start>mdi-database-import</v-icon>
+                Load starter set
+              </v-btn>
+              <v-btn
+                color="primary"
+                size="default"
+                :loading="sortAlphaAndRenumber"
+                :disabled="!filteredLookups().length || sortAlphaAndRenumber"
+                @click="sortAndRenumberLookups"
+              >
+                <v-icon start>mdi-sort-alphabetical-ascending</v-icon>
+                Sort A–Z &amp; Renumber
+              </v-btn>
+              <v-btn
+                color="primary"
+                size="default"
+                :disabled="!isSuperAdmin && !userOrganizationId"
+                @click="openAddLookup"
+                >Add</v-btn
+              >
+            </div>
+          </v-card-text>
           <v-card-text>
             <v-table>
               <thead>
@@ -673,7 +885,13 @@ onMounted(() => {
           <v-card-title class="d-flex align-center">
             Users
             <v-spacer />
-            <v-btn color="primary" size="small" @click="openAddUser">Add User</v-btn>
+            <v-btn
+              color="primary"
+              size="small"
+              :disabled="!isSuperAdmin && !userOrganizationId"
+              @click="openAddUser"
+              >Add User</v-btn
+            >
           </v-card-title>
           <v-card-text>
             <v-table>
@@ -695,7 +913,14 @@ onMounted(() => {
                   <td>{{ u.role || 'worker' }}</td>
                   <td>{{ u.organization?.name || '–' }}</td>
                   <td>
-                    <v-icon small class="mr-2" @click="openEditUser(u)">mdi-pencil</v-icon>
+                    <v-icon
+                      v-if="u.role !== 'superadmin' || isSuperAdmin"
+                      small
+                      class="mr-2"
+                      @click="openEditUser(u)"
+                      >mdi-pencil</v-icon
+                    >
+                    <span v-else class="text-caption text-medium-emphasis">—</span>
                   </td>
                 </tr>
                 <tr v-if="!users.length">
@@ -818,10 +1043,14 @@ onMounted(() => {
         <v-card-text>
           <v-select
             v-model="locationForm.organizationId"
-            :items="organizations"
+            :items="organizationsForTenantSelect"
             item-title="name"
             item-value="id"
             label="Organization"
+            :disabled="!isSuperAdmin"
+            density="compact"
+            :hint="locationOrganizationHint"
+            persistent-hint
           />
           <v-text-field v-model="locationForm.name" label="Name" />
           <v-text-field v-model="locationForm.address" label="Address" />
@@ -883,7 +1112,7 @@ onMounted(() => {
             />
             <v-select
               v-model="userForm.role"
-              :items="ROLE_OPTIONS"
+              :items="roleOptions"
               item-title="title"
               item-value="value"
               label="Role *"
@@ -892,12 +1121,15 @@ onMounted(() => {
             />
             <v-select
               v-model="userForm.organizationId"
-              :items="organizations"
+              :items="organizationsForTenantSelect"
               item-title="name"
               item-value="id"
               label="Organization *"
               :rules="requiredSelect"
               density="compact"
+              :disabled="!isSuperAdmin"
+              :hint="userOrganizationHint"
+              persistent-hint
             />
           </v-form>
         </v-card-text>
@@ -913,6 +1145,18 @@ onMounted(() => {
       <v-card>
         <v-card-title>{{ lookupForm.id ? "Edit" : "Add" }} {{ LOOKUP_TYPES.find((t) => t.value === lookupForm.type)?.label || lookupForm.type }}</v-card-title>
         <v-card-text>
+          <v-select
+            v-model="lookupForm.organizationId"
+            :items="organizationsForTenantSelect"
+            item-title="name"
+            item-value="id"
+            label="Organization *"
+            :rules="requiredSelect"
+            density="compact"
+            :disabled="!isSuperAdmin"
+            :hint="lookupOrganizationHint"
+            persistent-hint
+          />
           <v-text-field v-model="lookupForm.value" label="Value" />
           <v-text-field v-model.number="lookupForm.sortOrder" label="Sort Order" type="number" />
           <v-select v-model="lookupForm.status" :items="['Active','Inactive']" label="Status" hint="Inactive options are hidden from dropdowns" persistent-hint />

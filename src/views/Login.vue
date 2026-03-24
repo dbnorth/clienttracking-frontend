@@ -34,11 +34,19 @@ const login = () => {
       return LocationServices.getAll();
     })
     .then((locRes) => {
-      locations.value = locRes.data || [];
+      const raw = locRes.data || [];
+      const orgId = loginResponse.value?.organizationId ?? loginResponse.value?.organization?.id;
+      locations.value =
+        orgId != null ? raw.filter((l) => Number(l.organizationId) === Number(orgId)) : [];
       if (locations.value.length > 0) {
-        selectedLocationId.value = Utils.getStore("user")?.currentLocationId || locations.value[0]?.id || null;
+        const userAfterLogin = Utils.getStore("user");
+        const storedId = userAfterLogin?.currentLocationId;
+        const storedOk = storedId != null && locations.value.some((l) => l.id === storedId);
+        selectedLocationId.value = storedOk ? storedId : locations.value[0].id;
         showLocationDialog.value = true;
       } else {
+        const u = Utils.getStore("user");
+        Utils.setStore("user", { ...u, currentLocationId: null, currentLocationName: null });
         window.dispatchEvent(new CustomEvent("user-logged-in"));
         router.push({ name: "home" });
       }

@@ -23,6 +23,13 @@ const apiClient = axios.create({
     if (user != null && user.token) {
       headers["Authorization"] = "Bearer " + user.token;
     }
+    if (
+      user?.role === "superadmin" &&
+      user.actingOrganizationId != null &&
+      user.actingOrganizationId !== ""
+    ) {
+      headers["X-Acting-Organization-Id"] = String(user.actingOrganizationId);
+    }
     return data ? JSON.stringify(data) : data;
   },
   transformResponse: (data) => {

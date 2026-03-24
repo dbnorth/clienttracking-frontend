@@ -16,4 +16,7 @@ export default {
   delete(id) {
     return apiClient.delete(`/lookups/${id}`);
   },
+  seedStarterSet(organizationId) {
+    return apiClient.post("/lookups/seed-starter-set", organizationId != null ? { organizationId } : {});
+  },
 };

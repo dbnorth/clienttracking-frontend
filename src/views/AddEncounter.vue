@@ -151,10 +151,7 @@ const searchClients = (q) => {
     loading.value = true;
     try {
       const u = Utils.getStore("user");
-      const orgId = u?.organizationId ?? u?.organization?.id;
-      const params = { name: query, phone: query };
-      if (orgId) params.organizationId = orgId;
-      else params.userId = u?.userId ?? u?.id;
+      const params = { ...Utils.getClientListQueryParams(u), name: query, phone: query };
       const res = await ClientServices.getAll(params);
       clients.value = res.data || [];
     } catch {
