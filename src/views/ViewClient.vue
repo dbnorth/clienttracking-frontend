@@ -67,6 +67,10 @@ const loadLookups = async () => {
 const getServiceName = (id) => serviceProvidedList.value.find((x) => x.id === id)?.value || id;
 
 const lookupValue = (arr, id) => (id ? arr.find((x) => x.id === id)?.value : null) || "–";
+const getClientPhotoUrl = () => {
+  if (!client.value?.photoUrl) return null;
+  return ClientServices.getPhotoUrl(client.value.photoUrl);
+};
 const lookupOrg = (id) => (id ? organizations.value.find((o) => o.id === id)?.name : null) || "–";
 const intakeLocLabel = (id) => {
   const loc = intakeLocations.value.find((l) => l.id === id);
@@ -127,20 +131,36 @@ onMounted(async () => {
       <template v-if="client.id">
         <v-sheet class="rounded-lg mb-4 pa-4" border>
           <div class="text-subtitle-1 mb-3 font-weight-medium">Client Info</div>
-          <div class="text-body-2">
-            <div class="mb-2"><strong>Name:</strong> {{ [client.firstName, client.middleName, client.lastName].filter(Boolean).join(' ') || '–' }}{{ client.suffix ? ` ${client.suffix}` : '' }}</div>
-            <div class="mb-2"><strong>Birthdate:</strong> {{ Utils.formatDate(client.birthdate) || '–' }}</div>
-            <div class="mb-2"><strong>Phone:</strong> {{ formatPhoneForDisplay(client.phone) || '–' }}</div>
-            <div class="mb-2"><strong>Housing Type:</strong> {{ lookupValue(housingTypes, client.housingTypeId) }}</div>
-            <div class="mb-2"><strong>Red/Green:</strong> {{ client.housingRedGreen || '–' }}</div>
-            <div class="mb-2"><strong>Housing Location:</strong> {{ lookupValue(housingLocations, client.housingLocationId) }}</div>
-            <template v-if="lookupValue(housingLocations, client.housingLocationId) === 'Address'">
-              <div class="mb-2"><strong>Street:</strong> {{ client.housingStreet || '–' }}</div>
-              <div class="mb-2"><strong>City:</strong> {{ client.housingCity || '–' }}</div>
-              <div class="mb-2"><strong>State:</strong> {{ client.housingState || '–' }}</div>
-              <div class="mb-2"><strong>Zip:</strong> {{ client.housingZip || '–' }}</div>
-            </template>
-          </div>
+          <v-row>
+            <v-col cols="12" md="7">
+              <div class="text-body-2">
+                <div class="mb-2"><strong>Name:</strong> {{ [client.firstName, client.middleName, client.lastName].filter(Boolean).join(' ') || '–' }}{{ client.suffix ? ` ${client.suffix}` : '' }}</div>
+                <div class="mb-2"><strong>Birthdate:</strong> {{ Utils.formatDate(client.birthdate) || '–' }}</div>
+                <div class="mb-2"><strong>Phone:</strong> {{ formatPhoneForDisplay(client.phone) || '–' }}</div>
+                <div class="mb-2"><strong>Housing Type:</strong> {{ lookupValue(housingTypes, client.housingTypeId) }}</div>
+                <div class="mb-2"><strong>Red/Green:</strong> {{ client.housingRedGreen || '–' }}</div>
+                <div class="mb-2"><strong>Housing Location:</strong> {{ lookupValue(housingLocations, client.housingLocationId) }}</div>
+                <template v-if="lookupValue(housingLocations, client.housingLocationId) === 'Address'">
+                  <div class="mb-2"><strong>Street:</strong> {{ client.housingStreet || '–' }}</div>
+                  <div class="mb-2"><strong>City:</strong> {{ client.housingCity || '–' }}</div>
+                  <div class="mb-2"><strong>State:</strong> {{ client.housingState || '–' }}</div>
+                  <div class="mb-2"><strong>Zip:</strong> {{ client.housingZip || '–' }}</div>
+                </template>
+              </div>
+            </v-col>
+            <v-col cols="12" md="5" class="d-flex justify-center justify-md-end align-start">
+              <div
+                v-if="getClientPhotoUrl()"
+                class="overflow-hidden"
+                style="width: 280px; height: 280px; background: rgb(var(--v-theme-surface-variant));"
+              >
+                <img :src="getClientPhotoUrl()" alt="Client photo" style="width: 100%; height: 100%; object-fit: cover" />
+              </div>
+              <div v-else class="d-flex align-center justify-center" style="width: 280px; height: 280px; background: rgb(var(--v-theme-surface-variant));">
+                <v-icon size="96">mdi-account</v-icon>
+              </div>
+            </v-col>
+          </v-row>
         </v-sheet>
         <v-sheet class="rounded-lg mb-4 pa-4" border>
           <div class="text-subtitle-1 mb-3 font-weight-medium">Contact Info</div>

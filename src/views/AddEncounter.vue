@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted, watch } from "vue";
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from "vue";
 import { useRouter } from "vue-router";
 import ClientServices from "../services/clientServices";
 import ClientServiceServices from "../services/clientserviceServices";
@@ -22,6 +22,12 @@ const encounterNotes = ref("");
 const encounterTypeId = ref(null);
 const encounterTypes = ref([]);
 const clientServiceHistory = ref([]);
+const photoDialogOpen = ref(false);
+const photoStream = ref(null);
+const photoVideoRef = ref(null);
+const photoFileInputRef = ref(null);
+const photoUploading = ref(false);
+const photoError = ref("");
 
 const formatNow = () => {
   const d = new Date();
@@ -34,6 +40,95 @@ const getClientLabel = (c) => {
   const name = [c.firstName, c.middleName, c.lastName].filter(Boolean).join(" ");
   const phone = c.phone ? ` • ${formatPhoneForDisplay(c.phone)}` : "";
   return name ? `${name}${phone}` : `#${c.id}`;
+};
+
+const getClientDisplayName = (c) => {
+  if (!c) return "";
+  const name = [c.firstName, c.middleName, c.lastName, c.suffix].filter(Boolean).join(" ");
+  return name || `Client #${c.id}`;
+};
+
+const getClientPhotoUrl = (c) => (c?.photoUrl ? ClientServices.getPhotoUrl(c.photoUrl) : null);
+
+const openPhotoDialog = async () => {
+  if (!selectedClient.value) return;
+  photoDialogOpen.value = true;
+  photoError.value = "";
+  photoUploading.value = false;
+  if (navigator.mediaDevices?.getUserMedia) {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
+      photoStream.value = stream;
+      await nextTick();
+      await nextTick();
+      const video = photoVideoRef.value;
+      if (video) video.srcObject = stream;
+    } catch (e) {
+      photoError.value = "Camera access denied or unavailable.";
+    }
+  } else {
+    photoError.value = "Camera not supported. Use file upload.";
+  }
+};
+
+const closePhotoDialog = () => {
+  if (photoStream.value) {
+    photoStream.value.getTracks().forEach((t) => t.stop());
+    photoStream.value = null;
+  }
+  photoDialogOpen.value = false;
+  photoError.value = "";
+};
+
+const capturePhoto = () => {
+  const video = photoVideoRef.value;
+  if (!video || !video.videoWidth || photoUploading.value) return;
+  const canvas = document.createElement("canvas");
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  canvas.getContext("2d").drawImage(video, 0, 0);
+  canvas.toBlob(
+    (blob) => {
+      if (!blob || !selectedClient.value) return;
+      uploadPhotoBlob(blob);
+    },
+    "image/jpeg",
+    0.9
+  );
+};
+
+const onPhotoFileSelected = (e) => {
+  const file = e.target.files?.[0];
+  if (!file || !selectedClient.value) return;
+  if (!file.type.startsWith("image/")) {
+    photoError.value = "Please select an image file (PNG, JPEG, or GIF).";
+    return;
+  }
+  if (file.size > 2 * 1024 * 1024) {
+    photoError.value = "Image must be 2MB or smaller.";
+    return;
+  }
+  photoError.value = "";
+  uploadPhotoBlob(file);
+  e.target.value = "";
+};
+
+const uploadPhotoBlob = async (blobOrFile) => {
+  if (!selectedClient.value || photoUploading.value) return;
+  photoUploading.value = true;
+  photoError.value = "";
+  try {
+    const res = await ClientServices.uploadPhoto(selectedClient.value.id, blobOrFile);
+    const photoUrl = res.data?.photoUrl;
+    if (photoUrl) {
+      selectedClient.value = { ...selectedClient.value, photoUrl };
+    }
+    closePhotoDialog();
+  } catch (e) {
+    photoError.value = e.response?.data?.message || "Upload failed.";
+  } finally {
+    photoUploading.value = false;
+  }
 };
 
 const clientsWithLabel = computed(() =>
@@ -286,6 +381,27 @@ onUnmounted(() => {
         <v-toolbar-title>Add Encounter</v-toolbar-title>
       </v-toolbar>
       <div class="text-h5 text-center mt-2 mb-2">{{ nowDisplay }}</div>
+      <div v-if="selectedClient" class="text-center mb-4">
+        <div class="text-h4 font-weight-medium mb-2">{{ getClientDisplayName(selectedClient) }}</div>
+        <div class="d-flex justify-center">
+          <div
+            v-if="getClientPhotoUrl(selectedClient)"
+            class="overflow-hidden"
+            style="width: 120px; height: 120px; background: rgb(var(--v-theme-surface-variant));"
+          >
+            <img :src="getClientPhotoUrl(selectedClient)" alt="Client photo" style="width: 100%; height: 100%; object-fit: cover" />
+          </div>
+          <div v-else class="d-flex flex-column align-center">
+            <div class="d-flex align-center justify-center mb-2" style="width: 120px; height: 120px; background: rgb(var(--v-theme-surface-variant));">
+              <v-icon size="48">mdi-account</v-icon>
+            </div>
+            <v-btn color="primary" size="small" variant="tonal" :disabled="photoUploading" :loading="photoUploading" @click="openPhotoDialog">
+              <v-icon start size="18">mdi-camera</v-icon>
+              Add Photo
+            </v-btn>
+          </div>
+        </div>
+      </div>
       <h4>{{ message }}</h4>
       <br />
 
@@ -400,6 +516,49 @@ onUnmounted(() => {
         <v-btn variant="text" @click="cancel">Cancel</v-btn>
         <v-btn color="primary" :disabled="!selectedClient || !hasSelection || saving" :loading="saving" @click="save">Save</v-btn>
       </div>
+
+      <v-dialog v-model="photoDialogOpen" max-width="500" persistent @click:outside="closePhotoDialog">
+        <v-card v-if="selectedClient">
+          <v-card-title>{{ getClientDisplayName(selectedClient) }} – Add Photo</v-card-title>
+          <v-card-text>
+            <div v-if="photoStream && !photoError" class="d-flex justify-center mb-3">
+              <video
+                ref="photoVideoRef"
+                autoplay
+                playsinline
+                muted
+                style="max-width: 100%; max-height: 300px; background: #000"
+              />
+            </div>
+            <v-alert v-if="photoError" type="warning" density="compact" class="mb-2">{{ photoError }}</v-alert>
+            <div class="d-flex flex-wrap ga-2">
+              <v-btn
+                v-if="photoStream && !photoError"
+                color="primary"
+                :disabled="photoUploading"
+                :loading="photoUploading"
+                @click="capturePhoto"
+              >
+                Take Photo
+              </v-btn>
+              <v-btn variant="outlined" :disabled="photoUploading" @click="photoFileInputRef?.click()">
+                Choose File
+              </v-btn>
+              <input
+                ref="photoFileInputRef"
+                type="file"
+                accept="image/png,image/jpeg,image/jpg,image/gif"
+                class="d-none"
+                @change="onPhotoFileSelected"
+              />
+            </div>
+          </v-card-text>
+          <v-card-actions>
+            <v-spacer />
+            <v-btn variant="text" @click="closePhotoDialog">Cancel</v-btn>
+          </v-card-actions>
+        </v-card>
+      </v-dialog>
     </v-container>
   </div>
 </template>

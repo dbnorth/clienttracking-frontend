@@ -1,4 +1,7 @@
 import apiClient from "./services.js";
+import Utils from "../config/utils.js";
+
+const getBaseUrl = () => (import.meta.env.DEV ? "http://localhost:3200/clienttracking/" : "/clienttracking/");
 
 export default {
   getAll(params = {}) {
@@ -23,5 +26,28 @@ export default {
   },
   delete(id) {
     return apiClient.delete(`/clients/${id}`);
+  },
+  uploadPhoto(id, file) {
+    const formData = new FormData();
+    formData.append("photo", file);
+    return apiClient.put(`/clients/${id}/photo`, formData, {
+      transformRequest: [(data, headers) => {
+        const user = Utils.getStore("user");
+        if (user?.token) headers["Authorization"] = "Bearer " + user.token;
+        if (data instanceof FormData) {
+          delete headers["Content-Type"];
+          return data;
+        }
+        return data ? JSON.stringify(data) : data;
+      }],
+    });
+  },
+  removePhoto(id) {
+    return apiClient.delete(`/clients/${id}/photo`);
+  },
+  getPhotoUrl(photoUrl) {
+    if (!photoUrl) return null;
+    const base = getBaseUrl();
+    return photoUrl.startsWith("http") ? photoUrl : `${base}uploads/${photoUrl}`;
   },
 };
