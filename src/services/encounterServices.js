@@ -2,11 +2,12 @@ import apiClient from "./services.js";
 
 export default {
   getAll(params = {}) {
-    const { clientId, date, userId } = params;
+    const { clientId, date, userId, organizationId } = params;
     const queryParams = {};
     if (clientId) queryParams.clientId = clientId;
     if (date) queryParams.date = date;
-    if (userId) queryParams.userId = userId;
+    if (organizationId) queryParams.organizationId = organizationId;
+    else if (userId) queryParams.userId = userId;
     return apiClient.get("/encounters", { params: queryParams });
   },
   getOne(clientId, id) {

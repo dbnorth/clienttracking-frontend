@@ -31,7 +31,8 @@ const getTimeDisplay = (row) => {
 };
 
 const retrieveEncounters = () => {
-  const params = { userId: user?.userId };
+  const orgId = user?.organizationId ?? user?.organization?.id;
+  const params = orgId ? { organizationId: orgId } : { userId: user?.userId };
   if (filterDate.value) params.date = filterDate.value;
   if (filterClientId.value) params.clientId = filterClientId.value;
   EncounterServices.getAll(params)
