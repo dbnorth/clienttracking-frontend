@@ -41,7 +41,8 @@ const getStatusDate = (row) => {
 };
 
 const retrieveServices = () => {
-  const params = { userId: user?.userId };
+  const orgId = user?.organizationId ?? user?.organization?.id;
+  const params = orgId ? { organizationId: orgId } : { userId: user?.userId };
   if (filterClientId.value) params.clientId = filterClientId.value;
   if (filterServiceProvidedId.value) params.serviceProvidedId = filterServiceProvidedId.value;
   if (filterStatus.value) params.status = filterStatus.value;

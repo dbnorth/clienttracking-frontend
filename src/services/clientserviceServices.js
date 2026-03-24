@@ -2,7 +2,7 @@ import apiClient from "./services.js";
 
 export default {
   getAll(params = {}) {
-    const { clientId, serviceProvidedId, date, status, userId, encounterId } = params;
+    const { clientId, serviceProvidedId, date, status, userId, organizationId, encounterId } = params;
     if (clientId && !serviceProvidedId && !date && !status && !encounterId) {
       return apiClient.get(`/clients/${clientId}/clientservices`);
     }
@@ -11,7 +11,8 @@ export default {
     if (serviceProvidedId) queryParams.serviceProvidedId = serviceProvidedId;
     if (date) queryParams.date = date;
     if (status) queryParams.status = status;
-    if (userId) queryParams.userId = userId;
+    if (organizationId) queryParams.organizationId = organizationId;
+    else if (userId) queryParams.userId = userId;
     if (encounterId) queryParams.encounterId = encounterId;
     return apiClient.get("/clientservices", { params: queryParams });
   },
