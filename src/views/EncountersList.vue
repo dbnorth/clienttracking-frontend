@@ -1,12 +1,11 @@
 <script setup>
-import { ref, computed, onMounted, watch } from "vue";
+import { ref, computed, onMounted, onUnmounted, watch } from "vue";
 import { useRouter } from "vue-router";
 import Utils from "../config/utils.js";
 import EncounterServices from "../services/encounterServices";
 import ClientServices from "../services/clientServices";
 
 const router = useRouter();
-const user = Utils.getStore("user");
 const encounters = ref([]);
 const clients = ref([]);
 const message = ref("Filter and manage encounters.");
@@ -31,8 +30,7 @@ const getTimeDisplay = (row) => {
 };
 
 const retrieveEncounters = () => {
-  const orgId = user?.organizationId ?? user?.organization?.id;
-  const params = orgId ? { organizationId: orgId } : { userId: user?.userId };
+  const params = { ...Utils.getClientListQueryParams(Utils.getStore("user")) };
   if (filterDate.value) params.date = filterDate.value;
   if (filterClientId.value) params.clientId = filterClientId.value;
   EncounterServices.getAll(params)
@@ -59,16 +57,28 @@ const clearFilters = () => {
 watch(filterClientId, () => retrieveEncounters());
 watch(filterDate, () => retrieveEncounters());
 
-onMounted(async () => {
+const loadClientsForEncounters = async () => {
   try {
-    const orgId = user?.organizationId ?? user?.organization?.id;
-    const params = orgId ? { organizationId: orgId } : { userId: user?.userId };
+    const params = { ...Utils.getClientListQueryParams(Utils.getStore("user")) };
     const r = await ClientServices.getAll(params);
     clients.value = r.data || [];
   } catch {
     clients.value = [];
   }
+};
+
+const onUserUpdated = () => {
+  loadClientsForEncounters();
   retrieveEncounters();
+};
+
+onMounted(async () => {
+  await loadClientsForEncounters();
+  retrieveEncounters();
+  window.addEventListener("user-updated", onUserUpdated);
+});
+onUnmounted(() => {
+  window.removeEventListener("user-updated", onUserUpdated);
 });
 </script>
 

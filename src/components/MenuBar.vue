@@ -17,9 +17,16 @@ const userUpdateForm = ref({ fName: "", lName: "", email: "", username: "", pass
 const organizations = ref([]);
 const userUpdateMessage = ref("");
 const userUpdateSaving = ref(false);
+const actingOrgItems = ref([]);
+const actingOrgLoading = ref(false);
 
 const resetMenu = () => {
   user.value = Utils.getStore("user");
+  if (user.value?.role === "superadmin" && user.value.actingOrganizationId === undefined && user.value.organizationId != null) {
+    const next = { ...user.value, actingOrganizationId: user.value.organizationId };
+    Utils.setStore("user", next);
+    user.value = next;
+  }
   if (user.value) {
     initials.value = (user.value.fName?.[0] || "") + (user.value.lName?.[0] || "");
     name.value = (user.value.fName || "") + " " + (user.value.lName || "");
@@ -33,6 +40,53 @@ const logout = () => {
       router.push({ name: "login" });
     })
     .catch(() => {});
+};
+
+const effectiveOrganizationId = () => {
+  const u = user.value;
+  if (!u) return null;
+  if (u.role === "superadmin") {
+    if (u.actingOrganizationId === undefined) {
+      return u.organizationId ?? u.organization?.id ?? null;
+    }
+    if (u.actingOrganizationId === null || u.actingOrganizationId === "") {
+      return null;
+    }
+    return u.actingOrganizationId;
+  }
+  return u.organizationId ?? u.organization?.id ?? null;
+};
+
+const persistActingOrganization = (orgId) => {
+  const u = Utils.getStore("user");
+  if (!u || u.role !== "superadmin") return;
+  const next = { ...u, actingOrganizationId: orgId };
+  Utils.setStore("user", next);
+  user.value = next;
+  window.dispatchEvent(new CustomEvent("user-updated"));
+};
+
+const onActingOrgChange = (val) => {
+  persistActingOrganization(val === undefined || val === null || val === "" ? null : val);
+};
+
+const loadActingOrgList = () => {
+  if (user.value?.role !== "superadmin") {
+    actingOrgItems.value = [];
+    return;
+  }
+  actingOrgLoading.value = true;
+  OrganizationServices.getAll()
+    .then((r) => {
+      const orgs = r.data || [];
+      actingOrgItems.value = [{ name: "All organizations", id: null }, ...orgs];
+    })
+    .catch(() => {
+      actingOrgItems.value = [{ name: "All organizations", id: null }];
+    })
+    .finally(() => {
+      actingOrgLoading.value = false;
+    });
 };
 
 const openUserUpdate = () => {
@@ -95,10 +149,14 @@ const loadTitle = () => {
     .then((r) => {
       const orgs = r.data || [];
       const org = orgs[0];
-      title.value = org?.name || "Client Tracking";
-      const userOrgId = user.value?.organizationId ?? user.value?.organization?.id;
-      const userOrg = userOrgId ? orgs.find((o) => o.id === userOrgId) : org;
-      orgLogoUrl.value = userOrg?.logoUrl ? OrganizationServices.getLogoUrl(userOrg.logoUrl) : null;
+      const effId = effectiveOrganizationId();
+      const userOrg = effId != null ? orgs.find((o) => o.id === effId) : null;
+      title.value = userOrg?.name || org?.name || "Client Tracking";
+      orgLogoUrl.value = userOrg?.logoUrl
+        ? OrganizationServices.getLogoUrl(userOrg.logoUrl)
+        : org?.logoUrl
+          ? OrganizationServices.getLogoUrl(org.logoUrl)
+          : null;
     })
     .catch(() => {});
 };
@@ -113,10 +171,16 @@ watch(showUserUpdateDialog, (open) => {
 
 onMounted(() => {
   resetMenu();
-  if (user.value) loadTitle();
+  if (user.value) {
+    loadTitle();
+    loadActingOrgList();
+  }
 });
 
-watch(user, () => loadTitle(), { deep: true });
+watch(user, () => {
+  loadTitle();
+  if (user.value?.role === "superadmin") loadActingOrgList();
+}, { deep: true });
 </script>
 
 <template>
@@ -138,7 +202,7 @@ watch(user, () => loadTitle(), { deep: true });
           <v-btn class="mx-2" :to="{ name: 'clients' }">Clients</v-btn>
           <v-btn class="mx-2" :to="{ name: 'encounters' }">Encounters</v-btn>
           <v-btn class="mx-2" :to="{ name: 'services' }">Services</v-btn>
-          <v-btn v-if="user.role === 'admin'" class="mx-2" :to="{ name: 'admin' }">Admin</v-btn>
+          <v-btn v-if="user.role === 'admin' || user.role === 'superadmin'" class="mx-2" :to="{ name: 'admin' }">Admin</v-btn>
         </template>
       </div>
       <v-menu v-if="user" bottom min-width="200px" rounded offset-y>
@@ -159,6 +223,20 @@ watch(user, () => loadTitle(), { deep: true });
               <p class="text-caption mt-1">{{ user?.username }}</p>
               <p class="text-caption">{{ user?.email }}</p>
               <v-divider class="my-3"></v-divider>
+              <v-select
+                v-if="user?.role === 'superadmin'"
+                :model-value="user?.actingOrganizationId ?? null"
+                :items="actingOrgItems"
+                item-title="name"
+                item-value="id"
+                label="Act as organization"
+                density="compact"
+                variant="outlined"
+                hide-details
+                :loading="actingOrgLoading"
+                class="mb-3 text-left"
+                @update:model-value="onActingOrgChange"
+              />
               <v-btn depressed rounded text block class="mb-2" @click="openUserUpdate">Update Profile</v-btn>
               <v-btn depressed rounded text block @click="logout">Logout</v-btn>
             </div>

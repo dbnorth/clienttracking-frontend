@@ -25,4 +25,19 @@ export default class Utils {
     if (!name) return;
     return window.localStorage.removeItem(name);
   };
+
+  /** Query params for GET clients (matches backend tenant scope + superadmin acting org). */
+  static getClientListQueryParams = (user) => {
+    if (!user) return {};
+    if (user.role === "superadmin") {
+      if (user.actingOrganizationId === null || user.actingOrganizationId === "") {
+        return {};
+      }
+      if (user.actingOrganizationId !== undefined && user.actingOrganizationId != null) {
+        return { organizationId: user.actingOrganizationId };
+      }
+    }
+    const orgId = user.organizationId ?? user.organization?.id;
+    return orgId ? { organizationId: orgId } : { userId: user.userId ?? user.id };
+  };
 }
