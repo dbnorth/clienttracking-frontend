@@ -1124,8 +1124,9 @@ onUnmounted(() => {
               :items="organizationsForTenantSelect"
               item-title="name"
               item-value="id"
-              label="Organization *"
-              :rules="requiredSelect"
+              clearable
+              :label="isSuperAdmin && userForm.id ? 'Organization' : 'Organization *'"
+              :rules="isSuperAdmin && userForm.id ? [] : requiredSelect"
               density="compact"
               :disabled="!isSuperAdmin"
               :hint="userOrganizationHint"
