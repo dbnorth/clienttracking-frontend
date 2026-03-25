@@ -21,6 +21,12 @@ const nowDisplay = ref("");
 const encounterNotes = ref("");
 const encounterTypeId = ref(null);
 const encounterTypes = ref([]);
+const encounterFormRef = ref(null);
+const requiredEncounterType = [(v) => (v != null && v !== "") || "Encounter type is required"];
+const onEncounterTypeChange = async () => {
+  // Re-validate immediately so required error clears once a value is selected.
+  await encounterFormRef.value?.validate();
+};
 const clientServiceHistory = ref([]);
 const photoDialogOpen = ref(false);
 const photoStream = ref(null);
@@ -201,13 +207,17 @@ const getLastDateForService = (serviceProvidedId) => {
     const prov = toDateStr(r.providedDate ?? r.encounterProvided?.date);
     if (prov) lastProvided = !lastProvided || prov > lastProvided ? prov : lastProvided;
     const req = toDateStr(r.requestedDate ?? r.encounterRequested?.date);
-    if (req) lastRequested = !lastRequested || req > lastRequested ? req : lastRequested;
+    // Do not treat request dates on cancelled rows as "last requested" — cancellation supersedes.
+    if (req && r.status !== "cancelled") {
+      lastRequested = !lastRequested || req > lastRequested ? req : lastRequested;
+    }
     if (r.status === "cancelled") {
       const canc = toDateStr(r.cancelledDate);
       if (canc) lastCancelled = !lastCancelled || canc > lastCancelled ? canc : lastCancelled;
     }
   });
-  const typeOrder = { provided: 3, requested: 2, cancelled: 1 };
+  /** Same calendar date: provided > cancelled > requested (cancel beats a still-open request). */
+  const typeOrder = { provided: 3, cancelled: 2, requested: 1 };
   const candidates = [
     lastProvided && { date: lastProvided, type: "provided", text: `Last provided: ${Utils.formatDate(lastProvided)}` },
     lastRequested && { date: lastRequested, type: "requested", text: `Last requested: ${Utils.formatDate(lastRequested)}` },
@@ -288,10 +298,16 @@ const hasSelection = computed(() =>
 );
 
 const save = async () => {
+  const { valid } = (await encounterFormRef.value?.validate()) ?? { valid: true };
+  if (!valid) return;
   const client = selectedClient.value;
   const clientId = client?.id ?? client?.clientId;
   if (!clientId) {
     message.value = "Please select a client.";
+    return;
+  }
+  if (encounterTypeId.value == null || encounterTypeId.value === "") {
+    message.value = "Encounter type is required.";
     return;
   }
   if (!hasSelection.value) {
@@ -335,7 +351,7 @@ const save = async () => {
     await ClientServiceServices.createBulk(clientId, items, {
       userId: uid,
       notes: encounterNotes.value || null,
-      encounterTypeId: encounterTypeId.value || null,
+      encounterTypeId: encounterTypeId.value,
     });
     router.back();
   } catch (e) {
@@ -402,46 +418,49 @@ onUnmounted(() => {
       <h4>{{ message }}</h4>
       <br />
 
-      <v-sheet class="rounded-lg mb-4 pa-4" border>
-        <div class="text-subtitle-1 mb-3 font-weight-medium">Select Client</div>
-        <v-autocomplete
-          v-model="selectedClient"
-          :items="clientsWithLabel"
-          :loading="loading"
-          item-title="displayLabel"
-          return-object
-          label="Search by name or phone number"
-          placeholder="Type to search..."
-          clearable
-          hide-no-data
-          density="compact"
-          no-filter
-          @update:search="onSearchInput"
-        >
-          <template #selection>
-            <span v-if="selectedClient">{{ getClientLabel(selectedClient) }}</span>
-          </template>
-        </v-autocomplete>
-        <v-select
-          v-model="encounterTypeId"
-          :items="encounterTypes"
-          item-title="value"
-          item-value="id"
-          label="Encounter Type"
-          clearable
-          density="compact"
-          class="mt-3"
-        />
-        <v-textarea
-          v-model="encounterNotes"
-          label="Notes"
-          placeholder="Optional notes for this encounter..."
-          density="compact"
-          rows="3"
-          class="mt-3"
-          hide-details
-        />
-      </v-sheet>
+      <v-form ref="encounterFormRef" validate-on="blur">
+        <v-sheet class="rounded-lg mb-4 pa-4" border>
+          <div class="text-subtitle-1 mb-3 font-weight-medium">Select Client</div>
+          <v-autocomplete
+            v-model="selectedClient"
+            :items="clientsWithLabel"
+            :loading="loading"
+            item-title="displayLabel"
+            return-object
+            label="Search by name or phone number"
+            placeholder="Type to search..."
+            clearable
+            hide-no-data
+            density="compact"
+            no-filter
+            @update:search="onSearchInput"
+          >
+            <template #selection>
+              <span v-if="selectedClient">{{ getClientLabel(selectedClient) }}</span>
+            </template>
+          </v-autocomplete>
+          <v-select
+            v-model="encounterTypeId"
+            :items="encounterTypes"
+            item-title="value"
+            item-value="id"
+            label="Encounter type *"
+            :rules="requiredEncounterType"
+            density="compact"
+            class="mt-3"
+            @update:model-value="onEncounterTypeChange"
+          />
+          <v-textarea
+            v-model="encounterNotes"
+            label="Notes"
+            placeholder="Optional notes for this encounter..."
+            density="compact"
+            rows="3"
+            class="mt-3"
+            hide-details
+          />
+        </v-sheet>
+      </v-form>
 
       <v-sheet class="rounded-lg pa-0 overflow-hidden" border>
         <div class="text-subtitle-1 pa-3 bg-grey-lighten-3 font-weight-medium">Services Provided</div>
@@ -511,7 +530,14 @@ onUnmounted(() => {
       <div class="d-flex align-center mt-4">
         <v-spacer />
         <v-btn variant="text" @click="cancel">Cancel</v-btn>
-        <v-btn color="primary" :disabled="!selectedClient || !hasSelection || saving" :loading="saving" @click="save">Save</v-btn>
+        <v-btn
+          color="primary"
+          :disabled="!selectedClient || !hasSelection || saving || encounterTypeId == null || encounterTypeId === ''"
+          :loading="saving"
+          @click="save"
+        >
+          Save
+        </v-btn>
       </div>
 
       <v-dialog v-model="photoDialogOpen" max-width="500" persistent @click:outside="closePhotoDialog">

@@ -17,7 +17,25 @@ const referringOrgs = ref([]);
 const organizations = ref([]);
 const locations = ref([]);
 const lookups = ref([]);
-const selectedLookupType = ref("housing_location");
+
+/** List value types for the List Values tab, sorted by label for the dropdown. */
+const LOOKUP_TYPES = [
+  { value: "referring_organization_type", label: "Referring Organization Types" },
+  { value: "housing_location", label: "Housing Locations" },
+  { value: "race", label: "Races" },
+  { value: "ethnicity", label: "Ethnicities" },
+  { value: "gender", label: "Genders" },
+  { value: "initial_situation", label: "Initial Situations" },
+  { value: "referral_type", label: "Referral Types" },
+  { value: "drug_of_choice", label: "Drug of Choice" },
+  { value: "housing_type", label: "Housing Types" },
+  { value: "benefit", label: "Benefits" },
+  { value: "service_provided", label: "Services Provided" },
+  { value: "encounter_type", label: "Encounter Types" },
+].sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: "base" }));
+
+const defaultLookupType = LOOKUP_TYPES[0]?.value ?? "benefit";
+const selectedLookupType = ref(defaultLookupType);
 /** List Values tab: org filter (superadmin can change; others follow user org). */
 const selectedListValuesOrgId = ref(null);
 const users = ref([]);
@@ -32,7 +50,7 @@ const orgForm = ref({ id: null, name: "", contactName: "", phoneNumber: "", stre
 const locationForm = ref({ id: null, organizationId: null, name: "", address: "", city: "", state: "", zip: "", contactName: "", phoneNumber: "" });
 const lookupForm = ref({
   id: null,
-  type: "housing_location",
+  type: defaultLookupType,
   value: "",
   sortOrder: 0,
   status: "Active",
@@ -107,21 +125,6 @@ const roleOptions = computed(() => {
   }
   return base;
 });
-
-const LOOKUP_TYPES = [
-  { value: "referring_organization_type", label: "Referring Organization Types" },
-  { value: "housing_location", label: "Housing Locations" },
-  { value: "race", label: "Races" },
-  { value: "ethnicity", label: "Ethnicities" },
-  { value: "gender", label: "Genders" },
-  { value: "initial_situation", label: "Initial Situations" },
-  { value: "referral_type", label: "Referral Types" },
-  { value: "drug_of_choice", label: "Drug of Choice" },
-  { value: "housing_type", label: "Housing Types" },
-  { value: "benefit", label: "Benefits" },
-  { value: "service_provided", label: "Services Provided" },
-  { value: "encounter_type", label: "Encounter Types" },
-];
 
 const loadReferringOrgs = () => {
   ReferringOrganizationServices.getAll()
