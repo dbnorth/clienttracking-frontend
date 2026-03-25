@@ -26,6 +26,21 @@ export default class Utils {
     return window.localStorage.removeItem(name);
   };
 
+  /** Tenant org id: superadmin uses acting org when set; otherwise user's org. */
+  static effectiveOrganizationId = (user) => {
+    if (!user) return null;
+    if (user.role === "superadmin") {
+      if (user.actingOrganizationId === undefined) {
+        return user.organizationId ?? user.organization?.id ?? null;
+      }
+      if (user.actingOrganizationId === null || user.actingOrganizationId === "") {
+        return null;
+      }
+      return user.actingOrganizationId;
+    }
+    return user.organizationId ?? user.organization?.id ?? null;
+  };
+
   /** Query params for GET clients (matches backend tenant scope + superadmin acting org). */
   static getClientListQueryParams = (user) => {
     if (!user) return {};

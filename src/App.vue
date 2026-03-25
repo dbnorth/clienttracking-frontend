@@ -17,10 +17,18 @@ const applyOrgPrimaryColor = (color) => {
 
 const fetchAndApplyOrgColor = () => {
   const user = Utils.getStore("user");
-  const color = user?.organization?.primaryColor;
-  const orgId = user?.organizationId ?? user?.organization?.id;
-  if (color && /^#[0-9A-Fa-f]{6}$/.test(color)) {
-    applyOrgPrimaryColor(color);
+  const orgId = Utils.effectiveOrganizationId(user);
+  const embeddedOrgId = user?.organizationId ?? user?.organization?.id;
+  const embeddedColor = user?.organization?.primaryColor;
+  const embeddedMatchesEffective =
+    orgId != null &&
+    embeddedOrgId != null &&
+    Number(embeddedOrgId) === Number(orgId) &&
+    embeddedColor &&
+    /^#[0-9A-Fa-f]{6}$/.test(embeddedColor);
+
+  if (embeddedMatchesEffective) {
+    applyOrgPrimaryColor(embeddedColor);
   } else if (orgId) {
     OrganizationServices.get(orgId)
       .then((r) => {
