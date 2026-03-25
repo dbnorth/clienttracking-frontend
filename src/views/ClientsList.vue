@@ -10,7 +10,7 @@ import { useRouter } from "vue-router";
 const router = useRouter();
 const clients = ref([]);
 const intakeLocations = ref([]);
-const message = ref("Search, Edit or View Clients");
+const message = ref("Results update when you change filters.");
 const filterName = ref("");
 const filterLocationId = ref(null);
 const filterHousingLocationId = ref(null);
@@ -142,8 +142,6 @@ const retrieveClients = () => {
     .catch((e) => (message.value = e.response?.data?.message || "Error loading clients"));
 };
 
-const applyFilters = () => retrieveClients();
-
 const loadLocations = () => {
   LocationServices.getAll()
     .then((r) => (intakeLocations.value = r.data))
@@ -198,7 +196,7 @@ onUnmounted(() => {
         <v-card-text>
           <v-row class="mb-3 align-center">
             <v-col cols="12" md="3">
-              <v-text-field v-model="filterName" label="Filter by Name" placeholder="First, last, or middle name" clearable density="compact" hide-details @keyup.enter="applyFilters" />
+              <v-text-field v-model="filterName" label="Filter by Name" placeholder="First, last, or middle name" clearable density="compact" hide-details @keyup.enter="retrieveClients" />
             </v-col>
             <v-col cols="12" md="3">
               <v-select v-model="filterLocationId" :items="intakeLocationsWithLabel" item-title="displayName" item-value="id"
@@ -208,9 +206,8 @@ onUnmounted(() => {
               <v-select v-model="filterHousingLocationId" :items="housingLocations" item-title="value" item-value="id"
                 label="Filter by Housing Location" clearable density="compact" hide-details />
             </v-col>
-            <v-col cols="12" md="3" class="d-flex align-center">
-              <v-btn type="button" color="primary" size="small" class="mr-2" @click.prevent="applyFilters">Filter</v-btn>
-              <v-btn type="button" variant="outlined" size="small" @click.prevent="clearFilters">Clear</v-btn>
+            <v-col cols="12" md="2" class="d-flex align-center">
+              <v-btn type="button" variant="outlined" size="small" @click.prevent="clearFilters">Clear filters</v-btn>
             </v-col>
           </v-row>
           <b>{{ message }}</b>

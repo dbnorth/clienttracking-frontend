@@ -10,7 +10,7 @@ import ViewClient from "./ViewClient.vue";
 const services = ref([]);
 const clients = ref([]);
 const serviceTypes = ref([]);
-const message = ref("Filter services by client, service type, status, and date.");
+const message = ref("Results update when you change filters.");
 const filterClientId = ref(null);
 const filterServiceProvidedId = ref(null);
 const filterStatus = ref(null);
@@ -174,9 +174,8 @@ onUnmounted(() => {
                 hide-details
               />
             </v-col>
-            <v-col cols="12" md="3" class="d-flex align-center">
-              <v-btn color="primary" size="small" class="mr-2" @click="retrieveServices">Filter</v-btn>
-              <v-btn variant="outlined" size="small" @click="clearFilters">Clear</v-btn>
+            <v-col cols="12" md="2" class="d-flex align-center">
+              <v-btn variant="outlined" size="small" @click="clearFilters">Clear filters</v-btn>
             </v-col>
           </v-row>
           <b>{{ message }}</b>

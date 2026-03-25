@@ -12,6 +12,7 @@ import EncountersList from "./views/EncountersList.vue";
 import EditEncounter from "./views/EditEncounter.vue";
 import ViewEncounter from "./views/ViewEncounter.vue";
 import ServicesList from "./views/ServicesList.vue";
+import ReferralsList from "./views/ReferralsList.vue";
 import Admin from "./views/Admin.vue";
 
 const router = createRouter({
@@ -26,6 +27,7 @@ const router = createRouter({
     { path: "/view/:id/add-service", name: "addService", component: AddService, props: (r) => ({ id: r.params.id }) },
     { path: "/encounters", name: "encounters", component: EncountersList },
     { path: "/services", name: "services", component: ServicesList },
+    { path: "/referrals", name: "referrals", component: ReferralsList },
     { path: "/add-encounter", name: "addEncounter", component: AddEncounter },
     { path: "/encounters/view/:clientId/:id", name: "viewEncounter", component: ViewEncounter, props: true },
     { path: "/encounters/edit/:clientId/:id", name: "editEncounter", component: EditEncounter, props: true },
