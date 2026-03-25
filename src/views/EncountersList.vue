@@ -8,7 +8,7 @@ import ClientServices from "../services/clientServices";
 const router = useRouter();
 const encounters = ref([]);
 const clients = ref([]);
-const message = ref("Filter and manage encounters.");
+const message = ref("Results update when you change filters.");
 const filterDate = ref("");
 const filterClientId = ref(null);
 
@@ -116,9 +116,8 @@ onUnmounted(() => {
                 hide-details
               />
             </v-col>
-            <v-col cols="12" md="3" class="d-flex align-center">
-              <v-btn color="primary" size="small" class="mr-2" @click="retrieveEncounters">Filter</v-btn>
-              <v-btn variant="outlined" size="small" @click="clearFilters">Clear</v-btn>
+            <v-col cols="12" md="2" class="d-flex align-center">
+              <v-btn variant="outlined" size="small" @click="clearFilters">Clear filters</v-btn>
             </v-col>
           </v-row>
           <b>{{ message }}</b>
