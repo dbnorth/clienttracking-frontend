@@ -559,7 +559,7 @@ const loadStarterLookups = () => {
     organizations.value?.find((o) => Number(o.id) === Number(oid))?.name || `organization #${oid}`;
   if (
     !confirm(
-      `Load default list values (race, ethnicity, referral types, genders, encounter types, housing types, benefits, drugs of choice, referring org types, initial situations) and a sample referring organization for "${orgName}"? Existing entries with the same name are skipped.`
+      `Load default list values (race, ethnicity, referral types, genders, encounter types, housing types, housing locations including Address, benefits, drugs of choice, referring org types, initial situations) and a sample referring organization for "${orgName}"? Existing entries with the same name are skipped.`
     )
   ) {
     return;

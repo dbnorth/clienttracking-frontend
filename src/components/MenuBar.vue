@@ -19,6 +19,8 @@ const userUpdateMessage = ref("");
 const userUpdateSaving = ref(false);
 const actingOrgItems = ref([]);
 const actingOrgLoading = ref(false);
+/** Controls profile v-menu; separate state so nested v-select does not close the menu. */
+const profileMenuOpen = ref(false);
 
 const resetMenu = () => {
   user.value = Utils.getStore("user");
@@ -34,6 +36,7 @@ const resetMenu = () => {
 };
 
 const logout = () => {
+  profileMenuOpen.value = false;
   AuthServices.logoutUser(user.value)
     .then(() => {
       Utils.removeItem("user");
@@ -90,6 +93,7 @@ const loadActingOrgList = () => {
 };
 
 const openUserUpdate = () => {
+  profileMenuOpen.value = false;
   const u = user.value;
   userUpdateForm.value = {
     fName: u?.fName || "",
@@ -205,7 +209,15 @@ watch(user, () => {
           <v-btn v-if="user.role === 'admin' || user.role === 'superadmin'" class="mx-2" :to="{ name: 'admin' }">Admin</v-btn>
         </template>
       </div>
-      <v-menu v-if="user" bottom min-width="200px" rounded offset-y>
+      <v-menu
+        v-if="user"
+        v-model="profileMenuOpen"
+        bottom
+        min-width="280px"
+        rounded
+        offset-y
+        :close-on-content-click="false"
+      >
         <template v-slot:activator="{ props }">
           <v-btn v-bind="props" icon x-large>
             <v-avatar v-if="user" color="secondary">
@@ -235,6 +247,7 @@ watch(user, () => {
                 hide-details
                 :loading="actingOrgLoading"
                 class="mb-3 text-left"
+                :menu-props="{ closeOnContentClick: false }"
                 @update:model-value="onActingOrgChange"
               />
               <v-btn depressed rounded text block class="mb-2" @click="openUserUpdate">Update Profile</v-btn>
