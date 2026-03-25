@@ -6,7 +6,6 @@ import ClientsList from "./views/ClientsList.vue";
 import AddClient from "./views/AddClient.vue";
 import EditClient from "./views/EditClient.vue";
 import ViewClient from "./views/ViewClient.vue";
-import AddService from "./views/AddService.vue";
 import AddEncounter from "./views/AddEncounter.vue";
 import EncountersList from "./views/EncountersList.vue";
 import EditEncounter from "./views/EditEncounter.vue";
@@ -24,7 +23,6 @@ const router = createRouter({
     { path: "/add", name: "addClient", component: AddClient },
     { path: "/edit/:id", name: "editClient", component: EditClient, props: true },
     { path: "/view/:id", name: "viewClient", component: ViewClient, props: true },
-    { path: "/view/:id/add-service", name: "addService", component: AddService, props: (r) => ({ id: r.params.id }) },
     { path: "/encounters", name: "encounters", component: EncountersList },
     { path: "/services", name: "services", component: ServicesList },
     { path: "/referrals", name: "referrals", component: ReferralsList },
