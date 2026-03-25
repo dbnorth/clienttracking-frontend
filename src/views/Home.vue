@@ -47,7 +47,7 @@ const loadLocationName = async () => {
 };
 
 const loadOrgLogo = () => {
-  const orgId = user.value?.organizationId ?? user.value?.organization?.id;
+  const orgId = Utils.effectiveOrganizationId(user.value);
   if (orgId) {
     OrganizationServices.get(orgId)
       .then((r) => {

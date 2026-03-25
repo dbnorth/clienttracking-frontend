@@ -45,21 +45,6 @@ const logout = () => {
     .catch(() => {});
 };
 
-const effectiveOrganizationId = () => {
-  const u = user.value;
-  if (!u) return null;
-  if (u.role === "superadmin") {
-    if (u.actingOrganizationId === undefined) {
-      return u.organizationId ?? u.organization?.id ?? null;
-    }
-    if (u.actingOrganizationId === null || u.actingOrganizationId === "") {
-      return null;
-    }
-    return u.actingOrganizationId;
-  }
-  return u.organizationId ?? u.organization?.id ?? null;
-};
-
 const persistActingOrganization = (orgId) => {
   const u = Utils.getStore("user");
   if (!u || u.role !== "superadmin") return;
@@ -153,7 +138,7 @@ const loadTitle = () => {
     .then((r) => {
       const orgs = r.data || [];
       const org = orgs[0];
-      const effId = effectiveOrganizationId();
+      const effId = Utils.effectiveOrganizationId(user.value);
       const userOrg = effId != null ? orgs.find((o) => o.id === effId) : null;
       title.value = userOrg?.name || org?.name || "Client Tracking";
       orgLogoUrl.value = userOrg?.logoUrl
