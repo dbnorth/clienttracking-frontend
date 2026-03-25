@@ -9,7 +9,7 @@ import UserServices from "../services/userServices";
 import PhoneInput from "../components/PhoneInput.vue";
 import { phoneRule, formatPhoneForDisplay } from "../utils/phoneUtils.js";
 
-const tab = ref("referringOrgs");
+const tab = ref("organizations");
 const message = ref("");
 const successMessage = ref("");
 
@@ -642,61 +642,21 @@ onUnmounted(() => {
 <template>
   <v-container>
     <v-toolbar>
-      <v-toolbar-title>Admin – Referring Organizations &amp; Lookups</v-toolbar-title>
+      <v-toolbar-title>Admin</v-toolbar-title>
     </v-toolbar>
 
     <v-alert v-if="message" type="error" density="compact" class="mt-3 mb-3" @click="message = ''">{{ message }}</v-alert>
     <v-alert v-if="successMessage" type="success" density="compact" class="mt-3 mb-3" @click="successMessage = ''">{{ successMessage }}</v-alert>
 
     <v-tabs v-model="tab" class="mt-4">
-      <v-tab value="referringOrgs">Referring Organizations</v-tab>
       <v-tab value="organizations">Organizations</v-tab>
       <v-tab value="locations">Locations</v-tab>
-      <v-tab value="lookups">List Values</v-tab>
       <v-tab value="users">Users</v-tab>
+      <v-tab value="referringOrgs">Referring Organizations</v-tab>
+      <v-tab value="lookups">List Values</v-tab>
     </v-tabs>
 
     <v-window v-model="tab" class="mt-4">
-      <v-window-item value="referringOrgs">
-        <v-card>
-          <v-card-title class="d-flex align-center">
-            Referring Organizations
-            <v-spacer />
-            <v-btn color="primary" size="small" @click="openAddRefOrg">Add Referring Organization</v-btn>
-          </v-card-title>
-          <v-card-text>
-            <v-table>
-              <thead>
-                <tr>
-                  <th class="text-left">Name</th>
-                  <th class="text-left">Organization</th>
-                  <th class="text-left">Type</th>
-                  <th class="text-left">Case Worker</th>
-                  <th class="text-left">Phone</th>
-                  <th class="text-left" width="120">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="org in referringOrgs" :key="org.id">
-                  <td>{{ org.name }}</td>
-                  <td>{{ org.organization?.name || "–" }}</td>
-                  <td>{{ org.referringOrganizationType?.value || "–" }}</td>
-                  <td>{{ org.caseWorkerName || "–" }}</td>
-                  <td>{{ formatPhoneForDisplay(org.phone) || "–" }}</td>
-                  <td>
-                    <v-icon small class="mr-2" @click="openEditRefOrg(org)">mdi-pencil</v-icon>
-                    <v-icon small @click="deleteRefOrg(org)">mdi-trash-can</v-icon>
-                  </td>
-                </tr>
-                <tr v-if="!referringOrgs.length">
-                  <td colspan="6" class="text-center text-medium-emphasis">No referring organizations yet. Add one.</td>
-                </tr>
-              </tbody>
-            </v-table>
-          </v-card-text>
-        </v-card>
-      </v-window-item>
-
       <v-window-item value="organizations">
         <v-card>
           <v-card-title class="d-flex align-center">
@@ -790,6 +750,98 @@ onUnmounted(() => {
         </v-card>
       </v-window-item>
 
+      <v-window-item value="users">
+        <v-card>
+          <v-card-title class="d-flex align-center">
+            Users
+            <v-spacer />
+            <v-btn
+              color="primary"
+              size="small"
+              :disabled="!isSuperAdmin && !userOrganizationId"
+              @click="openAddUser"
+              >Add User</v-btn
+            >
+          </v-card-title>
+          <v-card-text>
+            <v-table>
+              <thead>
+                <tr>
+                  <th class="text-left">Name</th>
+                  <th class="text-left">Username</th>
+                  <th class="text-left">Email</th>
+                  <th class="text-left">Role</th>
+                  <th class="text-left">Organization</th>
+                  <th class="text-left" width="100">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="u in users" :key="u.id">
+                  <td>{{ [u.fName, u.lName].filter(Boolean).join(' ') || '–' }}</td>
+                  <td>{{ u.username || '–' }}</td>
+                  <td>{{ u.email || '–' }}</td>
+                  <td>{{ u.role || 'worker' }}</td>
+                  <td>{{ u.organization?.name || '–' }}</td>
+                  <td>
+                    <v-icon
+                      v-if="u.role !== 'superadmin' || isSuperAdmin"
+                      small
+                      class="mr-2"
+                      @click="openEditUser(u)"
+                      >mdi-pencil</v-icon
+                    >
+                    <span v-else class="text-caption text-medium-emphasis">—</span>
+                  </td>
+                </tr>
+                <tr v-if="!users.length">
+                  <td colspan="6" class="text-center text-medium-emphasis">No users yet. Add one.</td>
+                </tr>
+              </tbody>
+            </v-table>
+          </v-card-text>
+        </v-card>
+      </v-window-item>
+
+      <v-window-item value="referringOrgs">
+        <v-card>
+          <v-card-title class="d-flex align-center">
+            Referring Organizations
+            <v-spacer />
+            <v-btn color="primary" size="small" @click="openAddRefOrg">Add Referring Organization</v-btn>
+          </v-card-title>
+          <v-card-text>
+            <v-table>
+              <thead>
+                <tr>
+                  <th class="text-left">Name</th>
+                  <th class="text-left">Organization</th>
+                  <th class="text-left">Type</th>
+                  <th class="text-left">Case Worker</th>
+                  <th class="text-left">Phone</th>
+                  <th class="text-left" width="120">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="org in referringOrgs" :key="org.id">
+                  <td>{{ org.name }}</td>
+                  <td>{{ org.organization?.name || "–" }}</td>
+                  <td>{{ org.referringOrganizationType?.value || "–" }}</td>
+                  <td>{{ org.caseWorkerName || "–" }}</td>
+                  <td>{{ formatPhoneForDisplay(org.phone) || "–" }}</td>
+                  <td>
+                    <v-icon small class="mr-2" @click="openEditRefOrg(org)">mdi-pencil</v-icon>
+                    <v-icon small @click="deleteRefOrg(org)">mdi-trash-can</v-icon>
+                  </td>
+                </tr>
+                <tr v-if="!referringOrgs.length">
+                  <td colspan="6" class="text-center text-medium-emphasis">No referring organizations yet. Add one.</td>
+                </tr>
+              </tbody>
+            </v-table>
+          </v-card-text>
+        </v-card>
+      </v-window-item>
+
       <v-window-item value="lookups">
         <v-card>
           <v-card-text class="pt-4">
@@ -873,58 +925,6 @@ onUnmounted(() => {
                 </tr>
                 <tr v-if="!filteredLookups().length">
                   <td colspan="4" class="text-center text-medium-emphasis">No entries. Add one.</td>
-                </tr>
-              </tbody>
-            </v-table>
-          </v-card-text>
-        </v-card>
-      </v-window-item>
-
-      <v-window-item value="users">
-        <v-card>
-          <v-card-title class="d-flex align-center">
-            Users
-            <v-spacer />
-            <v-btn
-              color="primary"
-              size="small"
-              :disabled="!isSuperAdmin && !userOrganizationId"
-              @click="openAddUser"
-              >Add User</v-btn
-            >
-          </v-card-title>
-          <v-card-text>
-            <v-table>
-              <thead>
-                <tr>
-                  <th class="text-left">Name</th>
-                  <th class="text-left">Username</th>
-                  <th class="text-left">Email</th>
-                  <th class="text-left">Role</th>
-                  <th class="text-left">Organization</th>
-                  <th class="text-left" width="100">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="u in users" :key="u.id">
-                  <td>{{ [u.fName, u.lName].filter(Boolean).join(' ') || '–' }}</td>
-                  <td>{{ u.username || '–' }}</td>
-                  <td>{{ u.email || '–' }}</td>
-                  <td>{{ u.role || 'worker' }}</td>
-                  <td>{{ u.organization?.name || '–' }}</td>
-                  <td>
-                    <v-icon
-                      v-if="u.role !== 'superadmin' || isSuperAdmin"
-                      small
-                      class="mr-2"
-                      @click="openEditUser(u)"
-                      >mdi-pencil</v-icon
-                    >
-                    <span v-else class="text-caption text-medium-emphasis">—</span>
-                  </td>
-                </tr>
-                <tr v-if="!users.length">
-                  <td colspan="6" class="text-center text-medium-emphasis">No users yet. Add one.</td>
                 </tr>
               </tbody>
             </v-table>
