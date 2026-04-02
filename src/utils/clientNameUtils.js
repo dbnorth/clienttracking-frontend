@@ -1,9 +1,9 @@
 /** Shown in place of legal first name when set (nickname / goes by). */
 export const clientDisplayFirst = (c) => {
-  if (!c) return "";
-  const nick = (c.nickname || "").trim();
+  if (!c || typeof c !== "object") return "";
+  const nick = String(c.nickname ?? "").trim();
   if (nick) return nick;
-  return (c.firstName || "").trim();
+  return String(c.firstName ?? "").trim();
 };
 
 /**

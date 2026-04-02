@@ -123,6 +123,7 @@ defineExpose({ validate });
     <v-sheet class="rounded-lg mb-4 pa-0 overflow-hidden" border>
       <div class="text-subtitle-1 pa-3 bg-grey-lighten-3 font-weight-medium">Client Info</div>
       <div class="pa-4">
+        <div class="text-caption text-medium-emphasis mb-2">Legal name</div>
         <v-row>
           <v-col cols="12" md="3">
             <v-text-field
@@ -134,19 +135,10 @@ defineExpose({ validate });
               @update:model-value="(v) => $emit('update:modelValue', { ...modelValue, firstName: v })"
             />
           </v-col>
-          <v-col cols="12" md="3">
-            <v-text-field
-              v-model="modelValue.nickname"
-              label="Nickname / goes by"
-              placeholder="Optional"
-              :readonly="readOnly"
-              density="compact"
-            />
-          </v-col>
           <v-col cols="12" md="2">
             <v-text-field v-model="modelValue.middleName" label="Middle" :readonly="readOnly" density="compact" />
           </v-col>
-          <v-col cols="12" md="2">
+          <v-col cols="12" md="3">
             <v-text-field
               v-model="modelValue.lastName"
               label="Last Name *"
@@ -156,10 +148,10 @@ defineExpose({ validate });
               @update:model-value="(v) => $emit('update:modelValue', { ...modelValue, lastName: v })"
             />
           </v-col>
-          <v-col cols="12" md="1">
+          <v-col cols="12" md="2">
             <v-text-field v-model="modelValue.suffix" label="Suffix" :readonly="readOnly" density="compact" />
           </v-col>
-          <v-col cols="12" md="1">
+          <v-col cols="12" md="2">
             <v-text-field
               v-model="modelValue.birthdate"
               type="date"
@@ -168,6 +160,18 @@ defineExpose({ validate });
               :rules="readOnly ? [] : requiredDate"
               density="compact"
               @update:model-value="(v) => $emit('update:modelValue', { ...modelValue, birthdate: v })"
+            />
+          </v-col>
+        </v-row>
+        <v-row class="mt-0">
+          <v-col cols="12" md="6">
+            <v-text-field
+              :model-value="modelValue.nickname"
+              label="Nickname / goes by"
+              placeholder="Optional"
+              :readonly="readOnly"
+              density="compact"
+              @update:model-value="(v) => $emit('update:modelValue', { ...modelValue, nickname: v })"
             />
           </v-col>
         </v-row>
