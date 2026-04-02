@@ -4,6 +4,7 @@ import LocationServices from "../services/locationServices";
 import LookupServices from "../services/lookupServices";
 import Utils from "../config/utils.js";
 import { formatPhoneForDisplay } from "../utils/phoneUtils.js";
+import { getClientFullDisplayName } from "../utils/clientNameUtils.js";
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from "vue";
 import { useRouter } from "vue-router";
 
@@ -38,10 +39,6 @@ const addClient = () => router.push({ name: "addClient" });
 
 const editClient = (client) => {
   router.push({ name: "editClient", params: { id: client.id } });
-};
-
-const getClientName = (c) => {
-  return [c.firstName, c.middleName, c.lastName, c.suffix].filter(Boolean).join(" ") || `#${c.id}`;
 };
 
 const getClientPhotoUrl = (c) => {
@@ -138,7 +135,13 @@ const retrieveClients = () => {
   if (filterLocationId.value) params.intakeLocationId = filterLocationId.value;
   if (filterHousingLocationId.value) params.housingLocationId = filterHousingLocationId.value;
   ClientServices.getAll(params)
-    .then((response) => (clients.value = response.data))
+    .then((response) => {
+      const rows = Array.isArray(response.data) ? response.data : [];
+      clients.value = rows.map((row) => ({
+        ...row,
+        nickname: row.nickname != null ? String(row.nickname).trim() : "",
+      }));
+    })
     .catch((e) => (message.value = e.response?.data?.message || "Error loading clients"));
 };
 
@@ -196,7 +199,7 @@ onUnmounted(() => {
         <v-card-text>
           <v-row class="mb-3 align-center">
             <v-col cols="12" md="3">
-              <v-text-field v-model="filterName" label="Filter by Name" placeholder="First, last, or middle name" clearable density="compact" hide-details @keyup.enter="retrieveClients" />
+              <v-text-field v-model="filterName" label="Filter by Name" placeholder="First, nickname, last, or middle" clearable density="compact" hide-details @keyup.enter="retrieveClients" />
             </v-col>
             <v-col cols="12" md="3">
               <v-select v-model="filterLocationId" :items="intakeLocationsWithLabel" item-title="displayName" item-value="id"
@@ -237,7 +240,7 @@ onUnmounted(() => {
                   <v-icon size="20">mdi-account</v-icon>
                 </div>
               </td>
-              <td>{{ getClientName(item) }}</td>
+              <td>{{ getClientFullDisplayName(item) }}</td>
               <td>{{ formatPhoneForDisplay(item.phone) || "–" }}</td>
               <td>{{ item.intakeLocation ? (item.intakeLocation.organization ? `${item.intakeLocation.organization.name} – ${item.intakeLocation.name}` : item.intakeLocation.name) : "–" }}</td>
               <td>
@@ -264,7 +267,7 @@ onUnmounted(() => {
 
       <v-dialog v-model="photoDialogOpen" max-width="500" persistent @click:outside="closePhotoDialog">
         <v-card v-if="photoClient">
-          <v-card-title>{{ getClientName(photoClient) }} – Add Photo</v-card-title>
+          <v-card-title>{{ getClientFullDisplayName(photoClient) }} – Add Photo</v-card-title>
           <v-card-text>
             <div v-if="photoStream && !photoError" class="d-flex justify-center mb-3">
               <video

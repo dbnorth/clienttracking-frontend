@@ -5,6 +5,7 @@ import ReferralServices from "../services/referralServices";
 import ClientServices from "../services/clientServices";
 import ReferringOrganizationServices from "../services/referringOrganizationServices";
 import ViewClient from "./ViewClient.vue";
+import { getClientFullDisplayName } from "../utils/clientNameUtils.js";
 
 const referrals = ref([]);
 const clients = ref([]);
@@ -16,8 +17,7 @@ const filterDate = ref("");
 
 const getClientName = (c) => {
   if (!c) return "–";
-  const name = [c.firstName, c.middleName, c.lastName].filter(Boolean).join(" ");
-  return name || `#${c.id}`;
+  return getClientFullDisplayName(c) || "–";
 };
 
 const clientsForSelect = computed(() =>

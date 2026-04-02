@@ -79,10 +79,18 @@ watch(
   () => props.modelValue.housingLocationId,
   (id) => {
     const selected = props.housingLocations.find((l) => l.id === id);
-    if (selected?.value !== "Address" && (props.modelValue.housingStreet || props.modelValue.housingCity || props.modelValue.housingState || props.modelValue.housingZip)) {
+    if (
+      selected?.value !== "Address" &&
+      (props.modelValue.housingStreet ||
+        props.modelValue.housingApt ||
+        props.modelValue.housingCity ||
+        props.modelValue.housingState ||
+        props.modelValue.housingZip)
+    ) {
       emit("update:modelValue", {
         ...props.modelValue,
         housingStreet: "",
+        housingApt: "",
         housingCity: "",
         housingState: "",
         housingZip: "",
@@ -115,6 +123,7 @@ defineExpose({ validate });
     <v-sheet class="rounded-lg mb-4 pa-0 overflow-hidden" border>
       <div class="text-subtitle-1 pa-3 bg-grey-lighten-3 font-weight-medium">Client Info</div>
       <div class="pa-4">
+        <div class="text-caption text-medium-emphasis mb-2">Legal name</div>
         <v-row>
           <v-col cols="12" md="3">
             <v-text-field
@@ -154,6 +163,18 @@ defineExpose({ validate });
             />
           </v-col>
         </v-row>
+        <v-row class="mt-0">
+          <v-col cols="12" md="6">
+            <v-text-field
+              :model-value="modelValue.nickname"
+              label="Nickname / goes by"
+              placeholder="Optional"
+              :readonly="readOnly"
+              density="compact"
+              @update:model-value="(v) => $emit('update:modelValue', { ...modelValue, nickname: v })"
+            />
+          </v-col>
+        </v-row>
         <v-row>
           <v-col cols="12" md="4">
             <PhoneInput
@@ -177,12 +198,21 @@ defineExpose({ validate });
           </v-col>
         </v-row>
         <v-row v-if="showHousingAddress">
-          <v-col cols="12" md="6">
+          <v-col cols="12" md="4">
             <v-text-field
               v-model="modelValue.housingStreet"
               label="Street *"
               :readonly="readOnly"
               :rules="readOnly ? [] : requiredText"
+              density="compact"
+            />
+          </v-col>
+          <v-col cols="12" md="2">
+            <v-text-field
+              v-model="modelValue.housingApt"
+              label="Apt #"
+              placeholder="Optional"
+              :readonly="readOnly"
               density="compact"
             />
           </v-col>
