@@ -4,6 +4,7 @@ import { useRouter } from "vue-router";
 import Utils from "../config/utils.js";
 import EncounterServices from "../services/encounterServices";
 import ClientServices from "../services/clientServices";
+import { getClientFullDisplayName } from "../utils/clientNameUtils.js";
 
 const router = useRouter();
 const encounters = ref([]);
@@ -14,8 +15,7 @@ const filterClientId = ref(null);
 
 const getClientName = (c) => {
   if (!c) return "–";
-  const name = [c.firstName, c.middleName, c.lastName].filter(Boolean).join(" ");
-  return name || `#${c.id}`;
+  return getClientFullDisplayName(c) || "–";
 };
 
 const clientsForSelect = computed(() =>

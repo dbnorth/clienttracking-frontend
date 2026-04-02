@@ -8,6 +8,7 @@ import LocationServices from "../services/locationServices";
 import { useRouter } from "vue-router";
 import Utils from "../config/utils.js";
 import { formatPhoneForDisplay } from "../utils/phoneUtils.js";
+import { getClientFullDisplayName } from "../utils/clientNameUtils.js";
 
 const router = useRouter();
 const user = Utils.getStore("user");
@@ -134,7 +135,13 @@ onMounted(async () => {
           <v-row>
             <v-col cols="12" md="7">
               <div class="text-body-2">
-                <div class="mb-2"><strong>Name:</strong> {{ [client.firstName, client.middleName, client.lastName].filter(Boolean).join(' ') || '–' }}{{ client.suffix ? ` ${client.suffix}` : '' }}</div>
+                <div class="mb-2"><strong>Name:</strong> {{ getClientFullDisplayName(client) || '–' }}</div>
+                <div
+                  v-if="client.nickname?.trim() && client.firstName?.trim() && client.nickname.trim() !== client.firstName.trim()"
+                  class="mb-2 text-caption text-medium-emphasis"
+                >
+                  Legal first name: {{ client.firstName }}
+                </div>
                 <div class="mb-2"><strong>Birthdate:</strong> {{ Utils.formatDate(client.birthdate) || '–' }}</div>
                 <div class="mb-2"><strong>Phone:</strong> {{ formatPhoneForDisplay(client.phone) || '–' }}</div>
                 <div class="mb-2"><strong>Housing Type:</strong> {{ lookupValue(housingTypes, client.housingTypeId) }}</div>
@@ -142,6 +149,7 @@ onMounted(async () => {
                 <div class="mb-2"><strong>Housing Location:</strong> {{ lookupValue(housingLocations, client.housingLocationId) }}</div>
                 <template v-if="lookupValue(housingLocations, client.housingLocationId) === 'Address'">
                   <div class="mb-2"><strong>Street:</strong> {{ client.housingStreet || '–' }}</div>
+                  <div class="mb-2"><strong>Apt #:</strong> {{ client.housingApt || '–' }}</div>
                   <div class="mb-2"><strong>City:</strong> {{ client.housingCity || '–' }}</div>
                   <div class="mb-2"><strong>State:</strong> {{ client.housingState || '–' }}</div>
                   <div class="mb-2"><strong>Zip:</strong> {{ client.housingZip || '–' }}</div>

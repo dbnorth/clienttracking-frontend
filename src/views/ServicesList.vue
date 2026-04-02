@@ -6,6 +6,7 @@ import ClientServices from "../services/clientServices";
 import LookupServices from "../services/lookupServices";
 import ViewEncounter from "./ViewEncounter.vue";
 import ViewClient from "./ViewClient.vue";
+import { getClientFullDisplayName } from "../utils/clientNameUtils.js";
 
 const services = ref([]);
 const clients = ref([]);
@@ -24,8 +25,7 @@ const statusOptions = [
 
 const getClientName = (c) => {
   if (!c) return "–";
-  const name = [c.firstName, c.middleName, c.lastName].filter(Boolean).join(" ");
-  return name || `#${c.id}`;
+  return getClientFullDisplayName(c) || "–";
 };
 
 const clientsForSelect = computed(() =>

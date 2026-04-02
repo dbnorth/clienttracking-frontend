@@ -6,6 +6,7 @@ import ClientServiceServices from "../services/clientserviceServices";
 import LookupServices from "../services/lookupServices";
 import Utils from "../config/utils.js";
 import { formatPhoneForDisplay } from "../utils/phoneUtils.js";
+import { getClientFullDisplayName } from "../utils/clientNameUtils.js";
 
 const router = useRouter();
 const message = ref("Select a client and mark services requested or provided.");
@@ -43,15 +44,14 @@ const formatNow = () => {
 };
 
 const getClientLabel = (c) => {
-  const name = [c.firstName, c.middleName, c.lastName].filter(Boolean).join(" ");
+  const name = getClientFullDisplayName(c);
   const phone = c.phone ? ` • ${formatPhoneForDisplay(c.phone)}` : "";
-  return name ? `${name}${phone}` : `#${c.id}`;
+  return `${name}${phone}`;
 };
 
 const getClientDisplayName = (c) => {
   if (!c) return "";
-  const name = [c.firstName, c.middleName, c.lastName, c.suffix].filter(Boolean).join(" ");
-  return name || `Client #${c.id}`;
+  return getClientFullDisplayName(c) || `Client #${c.id}`;
 };
 
 const getClientPhotoUrl = (c) => (c?.photoUrl ? ClientServices.getPhotoUrl(c.photoUrl) : null);

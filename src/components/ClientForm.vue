@@ -79,10 +79,18 @@ watch(
   () => props.modelValue.housingLocationId,
   (id) => {
     const selected = props.housingLocations.find((l) => l.id === id);
-    if (selected?.value !== "Address" && (props.modelValue.housingStreet || props.modelValue.housingCity || props.modelValue.housingState || props.modelValue.housingZip)) {
+    if (
+      selected?.value !== "Address" &&
+      (props.modelValue.housingStreet ||
+        props.modelValue.housingApt ||
+        props.modelValue.housingCity ||
+        props.modelValue.housingState ||
+        props.modelValue.housingZip)
+    ) {
       emit("update:modelValue", {
         ...props.modelValue,
         housingStreet: "",
+        housingApt: "",
         housingCity: "",
         housingState: "",
         housingZip: "",
@@ -126,10 +134,19 @@ defineExpose({ validate });
               @update:model-value="(v) => $emit('update:modelValue', { ...modelValue, firstName: v })"
             />
           </v-col>
+          <v-col cols="12" md="3">
+            <v-text-field
+              v-model="modelValue.nickname"
+              label="Nickname / goes by"
+              placeholder="Optional"
+              :readonly="readOnly"
+              density="compact"
+            />
+          </v-col>
           <v-col cols="12" md="2">
             <v-text-field v-model="modelValue.middleName" label="Middle" :readonly="readOnly" density="compact" />
           </v-col>
-          <v-col cols="12" md="3">
+          <v-col cols="12" md="2">
             <v-text-field
               v-model="modelValue.lastName"
               label="Last Name *"
@@ -139,10 +156,10 @@ defineExpose({ validate });
               @update:model-value="(v) => $emit('update:modelValue', { ...modelValue, lastName: v })"
             />
           </v-col>
-          <v-col cols="12" md="2">
+          <v-col cols="12" md="1">
             <v-text-field v-model="modelValue.suffix" label="Suffix" :readonly="readOnly" density="compact" />
           </v-col>
-          <v-col cols="12" md="2">
+          <v-col cols="12" md="1">
             <v-text-field
               v-model="modelValue.birthdate"
               type="date"
@@ -177,12 +194,21 @@ defineExpose({ validate });
           </v-col>
         </v-row>
         <v-row v-if="showHousingAddress">
-          <v-col cols="12" md="6">
+          <v-col cols="12" md="4">
             <v-text-field
               v-model="modelValue.housingStreet"
               label="Street *"
               :readonly="readOnly"
               :rules="readOnly ? [] : requiredText"
+              density="compact"
+            />
+          </v-col>
+          <v-col cols="12" md="2">
+            <v-text-field
+              v-model="modelValue.housingApt"
+              label="Apt #"
+              placeholder="Optional"
+              :readonly="readOnly"
               density="compact"
             />
           </v-col>

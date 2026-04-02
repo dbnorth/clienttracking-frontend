@@ -29,6 +29,7 @@ const benefits = ref([]);
 
 const client = ref({
   firstName: "",
+  nickname: "",
   middleName: "",
   lastName: "",
   suffix: "",
@@ -54,6 +55,7 @@ const client = ref({
   housingRedGreen: null,
   housingLocationId: null,
   housingStreet: "",
+  housingApt: "",
   housingCity: "",
   housingState: "",
   housingZip: "",

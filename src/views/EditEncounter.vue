@@ -5,6 +5,7 @@ import Utils from "../config/utils.js";
 import { formatPhoneForDisplay } from "../utils/phoneUtils.js";
 import EncounterServices from "../services/encounterServices";
 import LookupServices from "../services/lookupServices";
+import { getClientFullDisplayName } from "../utils/clientNameUtils.js";
 
 const router = useRouter();
 const props = defineProps({
@@ -18,8 +19,7 @@ const encounterTypes = ref([]);
 
 const getClientName = (c) => {
   if (!c) return "–";
-  const name = [c.firstName, c.middleName, c.lastName].filter(Boolean).join(" ");
-  return name || `#${c.id}`;
+  return getClientFullDisplayName(c) || "–";
 };
 
 const getTimeDisplay = (t) => {

@@ -4,6 +4,7 @@ import LocationServices from "../services/locationServices";
 import LookupServices from "../services/lookupServices";
 import Utils from "../config/utils.js";
 import { formatPhoneForDisplay } from "../utils/phoneUtils.js";
+import { getClientFullDisplayName } from "../utils/clientNameUtils.js";
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from "vue";
 import { useRouter } from "vue-router";
 
@@ -40,9 +41,7 @@ const editClient = (client) => {
   router.push({ name: "editClient", params: { id: client.id } });
 };
 
-const getClientName = (c) => {
-  return [c.firstName, c.middleName, c.lastName, c.suffix].filter(Boolean).join(" ") || `#${c.id}`;
-};
+const getClientName = (c) => getClientFullDisplayName(c);
 
 const getClientPhotoUrl = (c) => {
   if (!c?.photoUrl) return null;
@@ -196,7 +195,7 @@ onUnmounted(() => {
         <v-card-text>
           <v-row class="mb-3 align-center">
             <v-col cols="12" md="3">
-              <v-text-field v-model="filterName" label="Filter by Name" placeholder="First, last, or middle name" clearable density="compact" hide-details @keyup.enter="retrieveClients" />
+              <v-text-field v-model="filterName" label="Filter by Name" placeholder="First, nickname, last, or middle" clearable density="compact" hide-details @keyup.enter="retrieveClients" />
             </v-col>
             <v-col cols="12" md="3">
               <v-select v-model="filterLocationId" :items="intakeLocationsWithLabel" item-title="displayName" item-value="id"
