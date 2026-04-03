@@ -5,6 +5,7 @@ import LookupServices from "../services/lookupServices";
 import Utils from "../config/utils.js";
 import { formatPhoneForDisplay } from "../utils/phoneUtils.js";
 import { getClientFullDisplayName } from "../utils/clientNameUtils.js";
+import ClientDocumentsDialog from "../components/ClientDocumentsDialog.vue";
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from "vue";
 import { useRouter } from "vue-router";
 
@@ -23,6 +24,16 @@ const photoVideoRef = ref(null);
 const photoFileInputRef = ref(null);
 const photoUploading = ref(false);
 const photoError = ref("");
+/** "environment" = rear/back camera (typical for iPad client photos); "user" = front/selfie */
+const photoFacingMode = ref("environment");
+const photoSwitchingCamera = ref(false);
+const docsDialogOpen = ref(false);
+const docsClient = ref(null);
+
+const openDocsDialog = (client) => {
+  docsClient.value = client;
+  docsDialogOpen.value = true;
+};
 
 const intakeLocationsWithLabel = computed(() =>
   intakeLocations.value.map((loc) => ({
@@ -46,32 +57,69 @@ const getClientPhotoUrl = (c) => {
   return ClientServices.getPhotoUrl(c.photoUrl);
 };
 
+const stopPhotoStream = () => {
+  if (photoStream.value) {
+    photoStream.value.getTracks().forEach((t) => t.stop());
+    photoStream.value = null;
+  }
+};
+
+const startPhotoStream = async ({ allowFallback = false } = {}) => {
+  if (!navigator.mediaDevices?.getUserMedia) {
+    photoError.value = "Camera not supported. Use file upload.";
+    return;
+  }
+  stopPhotoStream();
+  const tryMode = (mode) =>
+    navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: mode } },
+    });
+  let stream;
+  try {
+    stream = await tryMode(photoFacingMode.value);
+  } catch (e) {
+    if (allowFallback && photoFacingMode.value === "environment") {
+      try {
+        stream = await tryMode("user");
+        photoFacingMode.value = "user";
+      } catch (e2) {
+        photoError.value = "Camera access denied or unavailable.";
+        return;
+      }
+    } else {
+      photoError.value = "Camera access denied or unavailable.";
+      return;
+    }
+  }
+  photoStream.value = stream;
+  await nextTick();
+  await nextTick();
+  const video = photoVideoRef.value;
+  if (video) video.srcObject = stream;
+  photoError.value = "";
+};
+
 const openPhotoDialog = async (client) => {
   photoClient.value = client;
   photoDialogOpen.value = true;
   photoError.value = "";
   photoUploading.value = false;
-  if (navigator.mediaDevices?.getUserMedia) {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
-      photoStream.value = stream;
-      await nextTick();
-      await nextTick();
-      const video = photoVideoRef.value;
-      if (video) video.srcObject = stream;
-    } catch (e) {
-      photoError.value = "Camera access denied or unavailable.";
-    }
-  } else {
-    photoError.value = "Camera not supported. Use file upload.";
+  photoFacingMode.value = "environment";
+  await startPhotoStream({ allowFallback: true });
+};
+
+const switchPhotoCamera = async () => {
+  photoFacingMode.value = photoFacingMode.value === "environment" ? "user" : "environment";
+  photoSwitchingCamera.value = true;
+  try {
+    await startPhotoStream({ allowFallback: false });
+  } finally {
+    photoSwitchingCamera.value = false;
   }
 };
 
 const closePhotoDialog = () => {
-  if (photoStream.value) {
-    photoStream.value.getTracks().forEach((t) => t.stop());
-    photoStream.value = null;
-  }
+  stopPhotoStream();
   photoDialogOpen.value = false;
   photoClient.value = null;
   photoError.value = "";
@@ -254,6 +302,11 @@ onUnmounted(() => {
                     <v-icon v-bind="tp" small class="mx-2" @click="openPhotoDialog(item)">mdi-camera</v-icon>
                   </template>
                 </v-tooltip>
+                <v-tooltip text="Documents" location="top">
+                  <template #activator="{ props: tp }">
+                    <v-icon v-bind="tp" small class="mx-2" @click="openDocsDialog(item)">mdi-file-document-multiple-outline</v-icon>
+                  </template>
+                </v-tooltip>
                 <v-icon small class="mx-2" @click="editClient(item)">mdi-pencil</v-icon>
                 <v-icon small class="mx-2" @click="viewClient(item)">mdi-eye</v-icon>
               </td>
@@ -279,17 +332,27 @@ onUnmounted(() => {
               />
             </div>
             <v-alert v-if="photoError" type="warning" density="compact" class="mb-2">{{ photoError }}</v-alert>
-            <div class="d-flex flex-wrap ga-2">
+            <div class="d-flex flex-wrap ga-2 align-center">
               <v-btn
                 v-if="photoStream && !photoError"
                 color="primary"
-                :disabled="photoUploading"
+                :disabled="photoUploading || photoSwitchingCamera"
                 :loading="photoUploading"
                 @click="capturePhoto"
               >
                 Take Photo
               </v-btn>
-              <v-btn variant="outlined" :disabled="photoUploading" @click="photoFileInputRef?.click()">
+              <v-btn
+                v-if="photoStream && !photoError"
+                variant="outlined"
+                prepend-icon="mdi-camera-flip"
+                :disabled="photoUploading || photoSwitchingCamera"
+                :loading="photoSwitchingCamera"
+                @click="switchPhotoCamera"
+              >
+                {{ photoFacingMode === "environment" ? "Front camera" : "Back camera" }}
+              </v-btn>
+              <v-btn variant="outlined" :disabled="photoUploading || photoSwitchingCamera" @click="photoFileInputRef?.click()">
                 Choose File
               </v-btn>
               <input
@@ -307,6 +370,17 @@ onUnmounted(() => {
           </v-card-actions>
         </v-card>
       </v-dialog>
+
+      <ClientDocumentsDialog
+        :model-value="docsDialogOpen"
+        :client="docsClient"
+        @update:model-value="
+          (v) => {
+            docsDialogOpen = v;
+            if (!v) docsClient = null;
+          }
+        "
+      />
     </v-container>
   </div>
 </template>
