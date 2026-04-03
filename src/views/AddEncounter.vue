@@ -10,6 +10,15 @@ import { getClientFullDisplayName } from "../utils/clientNameUtils.js";
 
 const router = useRouter();
 const route = useRoute();
+
+/** After save or cancel: Home if opened from Add Client; otherwise previous screen. */
+const leaveEncounter = () => {
+  if (route.query.from === "addClient") {
+    router.push({ name: "home" });
+    return;
+  }
+  router.back();
+};
 const message = ref("Select a client and mark services requested or provided.");
 const selectedClient = ref(null);
 const clients = ref([]);
@@ -397,7 +406,7 @@ const save = async () => {
       notes: encounterNotes.value || null,
       encounterTypeId: encounterTypeId.value,
     });
-    router.back();
+    leaveEncounter();
   } catch (e) {
     message.value = e.response?.data?.message || e.message || "Error saving. Check console for details.";
     console.error("Add Encounter save error:", e?.response?.data || e);
@@ -406,7 +415,7 @@ const save = async () => {
   }
 };
 
-const cancel = () => router.back();
+const cancel = () => leaveEncounter();
 
 let nowInterval;
 onMounted(async () => {

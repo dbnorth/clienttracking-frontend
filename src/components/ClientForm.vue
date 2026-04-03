@@ -140,6 +140,37 @@ watch(
   }
 );
 
+/** US state abbreviation: letters only, max 2, uppercase. */
+const normalizeStateAbbrev = (v) =>
+  String(v ?? "")
+    .replace(/[^a-zA-Z]/g, "")
+    .slice(0, 2)
+    .toUpperCase();
+
+watch(showHousingAddress, (show) => {
+  if (show && !props.readOnly && !String(props.modelValue.housingState ?? "").trim()) {
+    emit("update:modelValue", {
+      ...props.modelValue,
+      housingState: "OK",
+    });
+  }
+});
+
+watch(
+  () => props.modelValue.housingState,
+  (s) => {
+    if (props.readOnly) return;
+    const n = normalizeStateAbbrev(s);
+    if (String(s ?? "") !== n) {
+      emit("update:modelValue", {
+        ...props.modelValue,
+        housingState: n,
+      });
+    }
+  },
+  { immediate: true }
+);
+
 const validate = () => formRef.value?.validate();
 
 const focusFirstField = () => {
@@ -238,38 +269,6 @@ defineExpose({ validate, focusFirstField });
               label="Housing Location" clearable :readonly="readOnly" density="compact" />
           </v-col>
         </v-row>
-        <v-row>
-          <v-col cols="12" md="4">
-            <v-select
-              :model-value="modelValue.daytimeLocationId"
-              :items="daytimeLocations"
-              item-title="value"
-              item-value="id"
-              label="Daytime location"
-              clearable
-              :readonly="readOnly"
-              density="compact"
-              hide-details="auto"
-              @update:model-value="
-                (v) => $emit('update:modelValue', { ...modelValue, daytimeLocationId: v })
-              "
-            />
-          </v-col>
-          <v-col v-if="showDaytimeLocationOther" cols="12" md="8">
-            <v-text-field
-              :model-value="modelValue.daytimeLocationOther"
-              label="Daytime location description *"
-              placeholder="Describe when Other is selected"
-              :readonly="readOnly"
-              :rules="readOnly ? [] : daytimeOtherRules"
-              density="compact"
-              hide-details="auto"
-              @update:model-value="
-                (v) => $emit('update:modelValue', { ...modelValue, daytimeLocationOther: v })
-              "
-            />
-          </v-col>
-        </v-row>
         <v-row v-if="showHousingAddress">
           <v-col cols="12" md="4">
             <v-text-field
@@ -300,11 +299,21 @@ defineExpose({ validate, focusFirstField });
           </v-col>
           <v-col cols="12" md="2">
             <v-text-field
-              v-model="modelValue.housingState"
+              :model-value="normalizeStateAbbrev(modelValue.housingState)"
               label="State *"
+              maxlength="2"
+              placeholder="OK"
               :readonly="readOnly"
               :rules="readOnly ? [] : requiredText"
               density="compact"
+              autocapitalize="characters"
+              @update:model-value="
+                (v) =>
+                  $emit('update:modelValue', {
+                    ...modelValue,
+                    housingState: normalizeStateAbbrev(v),
+                  })
+              "
             />
           </v-col>
           <v-col cols="12" md="2">
@@ -314,6 +323,38 @@ defineExpose({ validate, focusFirstField });
               :readonly="readOnly"
               :rules="readOnly ? [] : requiredText"
               density="compact"
+            />
+          </v-col>
+        </v-row>
+        <v-row>
+          <v-col cols="12" md="4">
+            <v-select
+              :model-value="modelValue.daytimeLocationId"
+              :items="daytimeLocations"
+              item-title="value"
+              item-value="id"
+              label="Daytime location"
+              clearable
+              :readonly="readOnly"
+              density="compact"
+              hide-details="auto"
+              @update:model-value="
+                (v) => $emit('update:modelValue', { ...modelValue, daytimeLocationId: v })
+              "
+            />
+          </v-col>
+          <v-col v-if="showDaytimeLocationOther" cols="12" md="8">
+            <v-text-field
+              :model-value="modelValue.daytimeLocationOther"
+              label="Daytime location description *"
+              placeholder="Describe when Other is selected"
+              :readonly="readOnly"
+              :rules="readOnly ? [] : daytimeOtherRules"
+              density="compact"
+              hide-details="auto"
+              @update:model-value="
+                (v) => $emit('update:modelValue', { ...modelValue, daytimeLocationOther: v })
+              "
             />
           </v-col>
         </v-row>

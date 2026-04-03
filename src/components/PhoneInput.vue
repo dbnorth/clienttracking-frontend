@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from "vue";
-import { formatPhone, phoneRule } from "../utils/phoneUtils.js";
+import { formatPhone, phoneRule, PHONE_FORMATTED_MAX_LENGTH } from "../utils/phoneUtils.js";
 
 const props = defineProps({
   modelValue: { type: String, default: "" },
@@ -29,6 +29,7 @@ const onInput = (v) => emit("update:modelValue", formatPhone(v));
 <template>
   <v-text-field
     :model-value="displayValue"
+    :maxlength="PHONE_FORMATTED_MAX_LENGTH"
     @update:model-value="onInput"
     :label="label"
     :readonly="readonly"
@@ -36,5 +37,6 @@ const onInput = (v) => emit("update:modelValue", formatPhone(v));
     :hide-details="hideDetails"
     :rules="readonly ? [] : rules"
     placeholder="(555) 555-5555"
+    autocomplete="tel"
   />
 </template>
