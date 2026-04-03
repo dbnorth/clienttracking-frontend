@@ -9,6 +9,10 @@ import { useRouter } from "vue-router";
 import Utils from "../config/utils.js";
 import { formatPhoneForDisplay } from "../utils/phoneUtils.js";
 import { getClientFullDisplayName } from "../utils/clientNameUtils.js";
+import {
+  lookupQueryOpts,
+  organizationIdForClientRecordLookups,
+} from "../utils/lookupOrgUtils.js";
 
 const router = useRouter();
 const user = Utils.getStore("user");
@@ -35,37 +39,43 @@ const initialSituations = ref([]);
 const benefits = ref([]);
 const serviceProvidedList = ref([]);
 
-const loadLookups = async () => {
-  try {
-    const [r, o, loc, d, h, hl, dl, race, ethn, g, init, b, s] = await Promise.all([
-      LookupServices.getByType("referral_type"),
-      ReferringOrganizationServices.getAll(),
-      LocationServices.getAll(),
-      LookupServices.getByType("drug_of_choice"),
-      LookupServices.getByType("housing_type"),
-      LookupServices.getByType("housing_location"),
-      LookupServices.getByType("daytime_location"),
-      LookupServices.getByType("race"),
-      LookupServices.getByType("ethnicity"),
-      LookupServices.getByType("gender"),
-      LookupServices.getByType("initial_situation"),
-      LookupServices.getByType("benefit"),
-      LookupServices.getByType("service_provided"),
-    ]);
-    referralTypes.value = r.data;
-    organizations.value = o.data;
-    intakeLocations.value = loc.data;
-    drugOfChoice.value = d.data;
-    housingTypes.value = h.data;
-    housingLocations.value = hl.data;
-    daytimeLocations.value = dl.data;
-    races.value = race.data;
-    ethnicities.value = ethn.data;
-    genders.value = g.data;
-    initialSituations.value = init.data;
-    benefits.value = b.data;
-    serviceProvidedList.value = s.data;
-  } catch (e) {}
+const loadStaticRefs = async () => {
+  const [o, loc] = await Promise.all([
+    ReferringOrganizationServices.getAll(),
+    LocationServices.getAll(),
+  ]);
+  organizations.value = o.data;
+  intakeLocations.value = loc.data;
+};
+
+const reloadTypedLookups = async () => {
+  const opts = lookupQueryOpts(
+    organizationIdForClientRecordLookups(client.value, intakeLocations.value)
+  );
+  const [r, d, h, hl, dl, race, ethn, g, init, b, s] = await Promise.all([
+    LookupServices.getByType("referral_type", opts),
+    LookupServices.getByType("drug_of_choice", opts),
+    LookupServices.getByType("housing_type", opts),
+    LookupServices.getByType("housing_location", opts),
+    LookupServices.getByType("daytime_location", opts),
+    LookupServices.getByType("race", opts),
+    LookupServices.getByType("ethnicity", opts),
+    LookupServices.getByType("gender", opts),
+    LookupServices.getByType("initial_situation", opts),
+    LookupServices.getByType("benefit", opts),
+    LookupServices.getByType("service_provided", opts),
+  ]);
+  referralTypes.value = r.data;
+  drugOfChoice.value = d.data;
+  housingTypes.value = h.data;
+  housingLocations.value = hl.data;
+  daytimeLocations.value = dl.data;
+  races.value = race.data;
+  ethnicities.value = ethn.data;
+  genders.value = g.data;
+  initialSituations.value = init.data;
+  benefits.value = b.data;
+  serviceProvidedList.value = s.data;
 };
 
 const getServiceName = (id) => serviceProvidedList.value.find((x) => x.id === id)?.value || id;
@@ -127,8 +137,11 @@ const editClient = () => {
 };
 
 onMounted(async () => {
-  await loadLookups();
-  await retrieveData();
+  try {
+    await loadStaticRefs();
+    await retrieveData();
+    await reloadTypedLookups();
+  } catch (e) {}
 });
 </script>
 
@@ -167,7 +180,7 @@ onMounted(async () => {
                   <div class="mb-2"><strong>Street:</strong> {{ client.housingStreet || '–' }}</div>
                   <div class="mb-2"><strong>Apt #:</strong> {{ client.housingApt || '–' }}</div>
                   <div class="mb-2"><strong>City:</strong> {{ client.housingCity || '–' }}</div>
-                  <div class="mb-2"><strong>State:</strong> {{ client.housingState || '–' }}</div>
+                  <div class="mb-2"><strong>State:</strong> {{ client.housingState ? String(client.housingState).toUpperCase() : '–' }}</div>
                   <div class="mb-2"><strong>Zip:</strong> {{ client.housingZip || '–' }}</div>
                 </template>
               </div>

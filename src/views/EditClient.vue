@@ -7,6 +7,10 @@ import LocationServices from "../services/locationServices";
 import { useRouter } from "vue-router";
 import { phoneRule } from "../utils/phoneUtils.js";
 import ClientForm from "../components/ClientForm.vue";
+import {
+  lookupQueryOpts,
+  organizationIdForClientRecordLookups,
+} from "../utils/lookupOrgUtils.js";
 
 const router = useRouter();
 const props = defineProps({ id: { required: true } });
@@ -27,37 +31,41 @@ const initialSituations = ref([]);
 const benefits = ref([]);
 const client = ref({});
 
-const loadLookups = async () => {
-  try {
-    const [r, o, loc, d, h, hl, dl, race, ethn, g, init, b] = await Promise.all([
-      LookupServices.getByType("referral_type"),
-      ReferringOrganizationServices.getAll(),
-      LocationServices.getAll(),
-      LookupServices.getByType("drug_of_choice"),
-      LookupServices.getByType("housing_type"),
-      LookupServices.getByType("housing_location"),
-      LookupServices.getByType("daytime_location"),
-      LookupServices.getByType("race"),
-      LookupServices.getByType("ethnicity"),
-      LookupServices.getByType("gender"),
-      LookupServices.getByType("initial_situation"),
-      LookupServices.getByType("benefit"),
-    ]);
-    referralTypes.value = r.data;
-    organizations.value = o.data;
-    intakeLocations.value = loc.data;
-    drugOfChoice.value = d.data;
-    housingTypes.value = h.data;
-    housingLocations.value = hl.data;
-    daytimeLocations.value = dl.data;
-    races.value = race.data;
-    ethnicities.value = ethn.data;
-    genders.value = g.data;
-    initialSituations.value = init.data;
-    benefits.value = b.data;
-  } catch (e) {
-    message.value = "Error loading lookup data";
-  }
+const loadStaticRefs = async () => {
+  const [o, loc] = await Promise.all([
+    ReferringOrganizationServices.getAll(),
+    LocationServices.getAll(),
+  ]);
+  organizations.value = o.data;
+  intakeLocations.value = loc.data;
+};
+
+const reloadTypeLookups = async () => {
+  const opts = lookupQueryOpts(
+    organizationIdForClientRecordLookups(client.value, intakeLocations.value)
+  );
+  const [r, d, h, hl, dl, race, ethn, g, init, b] = await Promise.all([
+    LookupServices.getByType("referral_type", opts),
+    LookupServices.getByType("drug_of_choice", opts),
+    LookupServices.getByType("housing_type", opts),
+    LookupServices.getByType("housing_location", opts),
+    LookupServices.getByType("daytime_location", opts),
+    LookupServices.getByType("race", opts),
+    LookupServices.getByType("ethnicity", opts),
+    LookupServices.getByType("gender", opts),
+    LookupServices.getByType("initial_situation", opts),
+    LookupServices.getByType("benefit", opts),
+  ]);
+  referralTypes.value = r.data;
+  drugOfChoice.value = d.data;
+  housingTypes.value = h.data;
+  housingLocations.value = hl.data;
+  daytimeLocations.value = dl.data;
+  races.value = race.data;
+  ethnicities.value = ethn.data;
+  genders.value = g.data;
+  initialSituations.value = init.data;
+  benefits.value = b.data;
 };
 
 const retrieveClient = async () => {
@@ -95,8 +103,13 @@ const saveClient = async () => {
 const cancel = () => router.push({ name: "clients" });
 
 onMounted(async () => {
-  await loadLookups();
-  await retrieveClient();
+  try {
+    await loadStaticRefs();
+    await retrieveClient();
+    await reloadTypeLookups();
+  } catch (e) {
+    message.value = "Error loading lookup data";
+  }
 });
 </script>
 

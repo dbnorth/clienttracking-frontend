@@ -1,8 +1,12 @@
 import apiClient from "./services.js";
 
 export default {
-  getByType(type) {
-    return apiClient.get(`/lookups/type/${type}`);
+  getByType(type, opts = {}) {
+    const params = {};
+    if (opts.organizationId != null && opts.organizationId !== "") {
+      params.organizationId = opts.organizationId;
+    }
+    return apiClient.get(`/lookups/type/${type}`, { params });
   },
   getAll() {
     return apiClient.get("/lookups");
