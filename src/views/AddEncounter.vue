@@ -35,6 +35,8 @@ const photoVideoRef = ref(null);
 const photoFileInputRef = ref(null);
 const photoUploading = ref(false);
 const photoError = ref("");
+const photoFacingMode = ref("environment");
+const photoSwitchingCamera = ref(false);
 
 const formatNow = () => {
   const d = new Date();
@@ -56,32 +58,69 @@ const getClientDisplayName = (c) => {
 
 const getClientPhotoUrl = (c) => (c?.photoUrl ? ClientServices.getPhotoUrl(c.photoUrl) : null);
 
+const stopPhotoStream = () => {
+  if (photoStream.value) {
+    photoStream.value.getTracks().forEach((t) => t.stop());
+    photoStream.value = null;
+  }
+};
+
+const startPhotoStream = async ({ allowFallback = false } = {}) => {
+  if (!navigator.mediaDevices?.getUserMedia) {
+    photoError.value = "Camera not supported. Use file upload.";
+    return;
+  }
+  stopPhotoStream();
+  const tryMode = (mode) =>
+    navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: mode } },
+    });
+  let stream;
+  try {
+    stream = await tryMode(photoFacingMode.value);
+  } catch (e) {
+    if (allowFallback && photoFacingMode.value === "environment") {
+      try {
+        stream = await tryMode("user");
+        photoFacingMode.value = "user";
+      } catch (e2) {
+        photoError.value = "Camera access denied or unavailable.";
+        return;
+      }
+    } else {
+      photoError.value = "Camera access denied or unavailable.";
+      return;
+    }
+  }
+  photoStream.value = stream;
+  await nextTick();
+  await nextTick();
+  const video = photoVideoRef.value;
+  if (video) video.srcObject = stream;
+  photoError.value = "";
+};
+
 const openPhotoDialog = async () => {
   if (!selectedClient.value) return;
   photoDialogOpen.value = true;
   photoError.value = "";
   photoUploading.value = false;
-  if (navigator.mediaDevices?.getUserMedia) {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
-      photoStream.value = stream;
-      await nextTick();
-      await nextTick();
-      const video = photoVideoRef.value;
-      if (video) video.srcObject = stream;
-    } catch (e) {
-      photoError.value = "Camera access denied or unavailable.";
-    }
-  } else {
-    photoError.value = "Camera not supported. Use file upload.";
+  photoFacingMode.value = "environment";
+  await startPhotoStream({ allowFallback: true });
+};
+
+const switchPhotoCamera = async () => {
+  photoFacingMode.value = photoFacingMode.value === "environment" ? "user" : "environment";
+  photoSwitchingCamera.value = true;
+  try {
+    await startPhotoStream({ allowFallback: false });
+  } finally {
+    photoSwitchingCamera.value = false;
   }
 };
 
 const closePhotoDialog = () => {
-  if (photoStream.value) {
-    photoStream.value.getTracks().forEach((t) => t.stop());
-    photoStream.value = null;
-  }
+  stopPhotoStream();
   photoDialogOpen.value = false;
   photoError.value = "";
 };
@@ -554,17 +593,27 @@ onUnmounted(() => {
               />
             </div>
             <v-alert v-if="photoError" type="warning" density="compact" class="mb-2">{{ photoError }}</v-alert>
-            <div class="d-flex flex-wrap ga-2">
+            <div class="d-flex flex-wrap ga-2 align-center">
               <v-btn
                 v-if="photoStream && !photoError"
                 color="primary"
-                :disabled="photoUploading"
+                :disabled="photoUploading || photoSwitchingCamera"
                 :loading="photoUploading"
                 @click="capturePhoto"
               >
                 Take Photo
               </v-btn>
-              <v-btn variant="outlined" :disabled="photoUploading" @click="photoFileInputRef?.click()">
+              <v-btn
+                v-if="photoStream && !photoError"
+                variant="outlined"
+                prepend-icon="mdi-camera-flip"
+                :disabled="photoUploading || photoSwitchingCamera"
+                :loading="photoSwitchingCamera"
+                @click="switchPhotoCamera"
+              >
+                {{ photoFacingMode === "environment" ? "Front camera" : "Back camera" }}
+              </v-btn>
+              <v-btn variant="outlined" :disabled="photoUploading || photoSwitchingCamera" @click="photoFileInputRef?.click()">
                 Choose File
               </v-btn>
               <input
