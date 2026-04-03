@@ -3,6 +3,7 @@ import { watch, computed, ref } from "vue";
 import PhoneInput from "./PhoneInput.vue";
 
 const formRef = ref(null);
+const firstNameFieldRef = ref(null);
 const requiredText = [(v) => !!v?.trim() || "Required"];
 const requiredSelect = [(v) => (v != null && v !== "") || "Required"];
 const requiredDate = [(v) => !!v || "Required"];
@@ -15,6 +16,7 @@ const props = defineProps({
   drugOfChoice: { type: Array, default: () => [] },
   housingTypes: { type: Array, default: () => [] },
   housingLocations: { type: Array, default: () => [] },
+  daytimeLocations: { type: Array, default: () => [] },
   races: { type: Array, default: () => [] },
   ethnicities: { type: Array, default: () => [] },
   genders: { type: Array, default: () => [] },
@@ -38,6 +40,18 @@ const showHousingAddress = computed(() => {
   const selected = props.housingLocations.find((l) => l.id === props.modelValue.housingLocationId);
   return selected?.value === "Address";
 });
+
+const showDaytimeLocationOther = computed(() => {
+  if (!props.modelValue.daytimeLocationId) return false;
+  const selected = props.daytimeLocations.find((l) => l.id === props.modelValue.daytimeLocationId);
+  return selected?.value === "Other";
+});
+
+const daytimeOtherRules = computed(() =>
+  showDaytimeLocationOther.value && !props.readOnly
+    ? [(v) => !!String(v ?? "").trim() || "Description required when Other is selected"]
+    : []
+);
 
 const intakeLocationsWithLabel = computed(() =>
   props.intakeLocations.map((loc) => ({
@@ -100,6 +114,20 @@ watch(
 );
 
 watch(
+  () => props.modelValue.daytimeLocationId,
+  (id) => {
+    const selected = props.daytimeLocations.find((l) => l.id === id);
+    if (selected?.value !== "Other" && props.modelValue.daytimeLocationOther) {
+      emit("update:modelValue", {
+        ...props.modelValue,
+        daytimeLocationId: id,
+        daytimeLocationOther: "",
+      });
+    }
+  }
+);
+
+watch(
   () => props.modelValue.organizationId,
   (id) => {
     if (!id && (props.modelValue.referralCaseWorker || props.modelValue.referralPhone)) {
@@ -113,7 +141,19 @@ watch(
 );
 
 const validate = () => formRef.value?.validate();
-defineExpose({ validate });
+
+const focusFirstField = () => {
+  if (props.readOnly) return;
+  const field = firstNameFieldRef.value;
+  if (field && typeof field.focus === "function") {
+    field.focus();
+  } else {
+    const input = field?.$el?.querySelector?.("input");
+    input?.focus?.();
+  }
+};
+
+defineExpose({ validate, focusFirstField });
 </script>
 
 <template>
@@ -127,6 +167,7 @@ defineExpose({ validate });
         <v-row>
           <v-col cols="12" md="3">
             <v-text-field
+              ref="firstNameFieldRef"
               v-model="modelValue.firstName"
               label="First Name *"
               :readonly="readOnly"
@@ -195,6 +236,38 @@ defineExpose({ validate });
           <v-col cols="12" md="3">
             <v-select v-model="modelValue.housingLocationId" :items="housingLocations" item-title="value" item-value="id"
               label="Housing Location" clearable :readonly="readOnly" density="compact" />
+          </v-col>
+        </v-row>
+        <v-row>
+          <v-col cols="12" md="4">
+            <v-select
+              :model-value="modelValue.daytimeLocationId"
+              :items="daytimeLocations"
+              item-title="value"
+              item-value="id"
+              label="Daytime location"
+              clearable
+              :readonly="readOnly"
+              density="compact"
+              hide-details="auto"
+              @update:model-value="
+                (v) => $emit('update:modelValue', { ...modelValue, daytimeLocationId: v })
+              "
+            />
+          </v-col>
+          <v-col v-if="showDaytimeLocationOther" cols="12" md="8">
+            <v-text-field
+              :model-value="modelValue.daytimeLocationOther"
+              label="Daytime location description *"
+              placeholder="Describe when Other is selected"
+              :readonly="readOnly"
+              :rules="readOnly ? [] : daytimeOtherRules"
+              density="compact"
+              hide-details="auto"
+              @update:model-value="
+                (v) => $emit('update:modelValue', { ...modelValue, daytimeLocationOther: v })
+              "
+            />
           </v-col>
         </v-row>
         <v-row v-if="showHousingAddress">

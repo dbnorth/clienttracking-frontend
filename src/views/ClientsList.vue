@@ -10,11 +10,35 @@ import { ref, computed, onMounted, onUnmounted, watch, nextTick } from "vue";
 import { useRouter } from "vue-router";
 
 const router = useRouter();
+
+/** Local calendar date YYYY-MM-DD (matches date picker and typical “today”). */
+const todayIsoDate = () => {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+};
+
+const defaultIntakeLocationFilter = () => {
+  const u = Utils.getStore("user");
+  const id = u?.currentLocationId;
+  if (id == null || id === "") return null;
+  const n = Number(id);
+  return Number.isNaN(n) ? null : n;
+};
+
 const clients = ref([]);
 const intakeLocations = ref([]);
 const message = ref("Results update when you change filters.");
 const filterName = ref("");
-const filterLocationId = ref(null);
+const filterDateAdded = ref(todayIsoDate());
+/** When true, empty date means "show all dates"; when false, empty UI still filters by today (see retrieveClients). */
+const userClearedDateFilter = ref(false);
+/** Ignore empty date emits from Vuetify right after mount so the first load keeps today's filter. */
+let ignoreEmptyDateFilterUpdates = true;
+
+const filterLocationId = ref(defaultIntakeLocationFilter());
 const filterHousingLocationId = ref(null);
 const housingLocations = ref([]);
 const photoDialogOpen = ref(false);
@@ -50,6 +74,10 @@ const addClient = () => router.push({ name: "addClient" });
 
 const editClient = (client) => {
   router.push({ name: "editClient", params: { id: client.id } });
+};
+
+const addEncounterForClient = (client) => {
+  router.push({ name: "addEncounter", query: { clientId: String(client.id) } });
 };
 
 const getClientPhotoUrl = (c) => {
@@ -180,6 +208,12 @@ const uploadPhotoBlob = async (blobOrFile) => {
 const retrieveClients = () => {
   const params = { ...Utils.getClientListQueryParams(Utils.getStore("user")) };
   if (filterName.value) params.name = filterName.value;
+  const dateStr = filterDateAdded.value != null ? String(filterDateAdded.value).trim() : "";
+  if (dateStr) {
+    params.addedOn = dateStr;
+  } else if (!userClearedDateFilter.value) {
+    params.addedOn = todayIsoDate();
+  }
   if (filterLocationId.value) params.intakeLocationId = filterLocationId.value;
   if (filterHousingLocationId.value) params.housingLocationId = filterHousingLocationId.value;
   ClientServices.getAll(params)
@@ -207,8 +241,27 @@ const loadHousingLocations = () => {
 
 const clearFilters = () => {
   filterName.value = "";
-  filterLocationId.value = null;
+  userClearedDateFilter.value = false;
+  filterDateAdded.value = todayIsoDate();
+  filterLocationId.value = defaultIntakeLocationFilter();
   filterHousingLocationId.value = null;
+  retrieveClients();
+};
+
+const onDateFilterUpdate = (v) => {
+  const s = v == null || v === "" ? "" : String(v).trim();
+  if (s === "") {
+    if (ignoreEmptyDateFilterUpdates) {
+      filterDateAdded.value = todayIsoDate();
+      return;
+    }
+    userClearedDateFilter.value = true;
+    filterDateAdded.value = "";
+    retrieveClients();
+    return;
+  }
+  userClearedDateFilter.value = false;
+  filterDateAdded.value = s;
   retrieveClients();
 };
 
@@ -223,10 +276,17 @@ watch(filterName, () => {
 
 const onUserUpdated = () => retrieveClients();
 
-onMounted(() => {
+onMounted(async () => {
+  userClearedDateFilter.value = false;
+  filterDateAdded.value = todayIsoDate();
   loadLocations();
   loadHousingLocations();
+  await nextTick();
+  await nextTick();
   retrieveClients();
+  setTimeout(() => {
+    ignoreEmptyDateFilterUpdates = false;
+  }, 0);
   window.addEventListener("user-updated", onUserUpdated);
 });
 onUnmounted(() => {
@@ -246,16 +306,27 @@ onUnmounted(() => {
       <v-card>
         <v-card-text>
           <v-row class="mb-3 align-center">
-            <v-col cols="12" md="3">
+            <v-col cols="12" sm="6" md="2">
               <v-text-field v-model="filterName" label="Filter by Name" placeholder="First, nickname, last, or middle" clearable density="compact" hide-details @keyup.enter="retrieveClients" />
             </v-col>
-            <v-col cols="12" md="3">
-              <v-select v-model="filterLocationId" :items="intakeLocationsWithLabel" item-title="displayName" item-value="id"
-                label="Filter by Intake Location" clearable density="compact" hide-details />
+            <v-col cols="12" sm="6" md="2">
+              <v-text-field
+                :model-value="filterDateAdded"
+                type="date"
+                label="Date added"
+                clearable
+                density="compact"
+                hide-details
+                @update:model-value="onDateFilterUpdate"
+              />
             </v-col>
-            <v-col cols="12" md="3">
+            <v-col cols="12" sm="6" md="3">
+              <v-select v-model="filterLocationId" :items="intakeLocationsWithLabel" item-title="displayName" item-value="id"
+                label="Intake location" clearable density="compact" hide-details />
+            </v-col>
+            <v-col cols="12" sm="6" md="3">
               <v-select v-model="filterHousingLocationId" :items="housingLocations" item-title="value" item-value="id"
-                label="Filter by Housing Location" clearable density="compact" hide-details />
+                label="Housing location" clearable density="compact" hide-details />
             </v-col>
             <v-col cols="12" md="2" class="d-flex align-center">
               <v-btn type="button" variant="outlined" size="small" @click.prevent="clearFilters">Clear filters</v-btn>
@@ -277,18 +348,45 @@ onUnmounted(() => {
           <tbody>
             <tr v-for="item in clients" :key="item.id">
               <td class="pa-1">
-                <div
-                  v-if="getClientPhotoUrl(item)"
-                  class="overflow-hidden"
-                  style="width: 36px; height: 36px; background: rgb(var(--v-theme-surface-variant));"
-                >
-                  <img :src="getClientPhotoUrl(item)" alt="Client photo" style="width: 100%; height: 100%; object-fit: cover" />
-                </div>
-                <div v-else class="d-flex align-center justify-center" style="width: 36px; height: 36px; background: rgb(var(--v-theme-surface-variant));">
-                  <v-icon size="20">mdi-account</v-icon>
-                </div>
+                <v-tooltip v-if="getClientPhotoUrl(item)" text="Click to edit client" location="top">
+                  <template #activator="{ props: tp }">
+                    <div
+                      v-bind="tp"
+                      class="overflow-hidden cursor-pointer"
+                      style="width: 36px; height: 36px; background: rgb(var(--v-theme-surface-variant))"
+                      role="button"
+                      tabindex="0"
+                      @click="editClient(item)"
+                      @keydown.enter.prevent="editClient(item)"
+                    >
+                      <img :src="getClientPhotoUrl(item)" alt="Client photo" style="width: 100%; height: 100%; object-fit: cover" />
+                    </div>
+                  </template>
+                </v-tooltip>
+                <v-tooltip v-else text="Click to edit client" location="top">
+                  <template #activator="{ props: tp }">
+                    <div
+                      v-bind="tp"
+                      class="d-flex align-center justify-center cursor-pointer"
+                      style="width: 36px; height: 36px; background: rgb(var(--v-theme-surface-variant))"
+                      role="button"
+                      tabindex="0"
+                      @click="editClient(item)"
+                      @keydown.enter.prevent="editClient(item)"
+                    >
+                      <v-icon size="20">mdi-account</v-icon>
+                    </div>
+                  </template>
+                </v-tooltip>
               </td>
-              <td>{{ getClientFullDisplayName(item) }}</td>
+              <td>
+                <router-link
+                  class="text-primary text-decoration-none client-list-edit-link"
+                  :to="{ name: 'editClient', params: { id: item.id } }"
+                >
+                  {{ getClientFullDisplayName(item) }}
+                </router-link>
+              </td>
               <td>{{ formatPhoneForDisplay(item.phone) || "–" }}</td>
               <td>{{ item.intakeLocation ? (item.intakeLocation.organization ? `${item.intakeLocation.organization.name} – ${item.intakeLocation.name}` : item.intakeLocation.name) : "–" }}</td>
               <td>
@@ -307,8 +405,21 @@ onUnmounted(() => {
                     <v-icon v-bind="tp" small class="mx-2" @click="openDocsDialog(item)">mdi-file-document-multiple-outline</v-icon>
                   </template>
                 </v-tooltip>
-                <v-icon small class="mx-2" @click="editClient(item)">mdi-pencil</v-icon>
-                <v-icon small class="mx-2" @click="viewClient(item)">mdi-eye</v-icon>
+                <v-tooltip text="Add encounter" location="top">
+                  <template #activator="{ props: tp }">
+                    <v-icon v-bind="tp" small class="mx-2" @click="addEncounterForClient(item)">mdi-clipboard-plus-outline</v-icon>
+                  </template>
+                </v-tooltip>
+                <v-tooltip text="Edit client" location="top">
+                  <template #activator="{ props: tp }">
+                    <v-icon v-bind="tp" small class="mx-2" @click="editClient(item)">mdi-pencil</v-icon>
+                  </template>
+                </v-tooltip>
+                <v-tooltip text="View client" location="top">
+                  <template #activator="{ props: tp }">
+                    <v-icon v-bind="tp" small class="mx-2" @click="viewClient(item)">mdi-eye</v-icon>
+                  </template>
+                </v-tooltip>
               </td>
             </tr>
             <tr v-if="!clients.length">
@@ -384,3 +495,10 @@ onUnmounted(() => {
     </v-container>
   </div>
 </template>
+
+<style scoped>
+.client-list-edit-link:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+</style>

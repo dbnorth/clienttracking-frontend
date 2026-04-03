@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, computed, onMounted } from "vue";
 import ClientServices from "../services/clientServices";
 import ClientServiceServices from "../services/clientserviceServices";
 import LookupServices from "../services/lookupServices";
@@ -27,6 +27,7 @@ const intakeLocations = ref([]);
 const drugOfChoice = ref([]);
 const housingTypes = ref([]);
 const housingLocations = ref([]);
+const daytimeLocations = ref([]);
 const races = ref([]);
 const ethnicities = ref([]);
 const genders = ref([]);
@@ -36,13 +37,14 @@ const serviceProvidedList = ref([]);
 
 const loadLookups = async () => {
   try {
-    const [r, o, loc, d, h, hl, race, ethn, g, init, b, s] = await Promise.all([
+    const [r, o, loc, d, h, hl, dl, race, ethn, g, init, b, s] = await Promise.all([
       LookupServices.getByType("referral_type"),
       ReferringOrganizationServices.getAll(),
       LocationServices.getAll(),
       LookupServices.getByType("drug_of_choice"),
       LookupServices.getByType("housing_type"),
       LookupServices.getByType("housing_location"),
+      LookupServices.getByType("daytime_location"),
       LookupServices.getByType("race"),
       LookupServices.getByType("ethnicity"),
       LookupServices.getByType("gender"),
@@ -56,6 +58,7 @@ const loadLookups = async () => {
     drugOfChoice.value = d.data;
     housingTypes.value = h.data;
     housingLocations.value = hl.data;
+    daytimeLocations.value = dl.data;
     races.value = race.data;
     ethnicities.value = ethn.data;
     genders.value = g.data;
@@ -68,6 +71,18 @@ const loadLookups = async () => {
 const getServiceName = (id) => serviceProvidedList.value.find((x) => x.id === id)?.value || id;
 
 const lookupValue = (arr, id) => (id ? arr.find((x) => x.id === id)?.value : null) || "–";
+
+const daytimeLocationDisplay = computed(() => {
+  const c = client.value;
+  if (!c?.daytimeLocationId && !c?.daytimeLocation) return "–";
+  const label =
+    c.daytimeLocation?.value ?? lookupValue(daytimeLocations.value, c.daytimeLocationId);
+  if (label === "–") return "–";
+  if (label === "Other" && c.daytimeLocationOther?.trim()) {
+    return `Other — ${c.daytimeLocationOther.trim()}`;
+  }
+  return label;
+});
 const getClientPhotoUrl = () => {
   if (!client.value?.photoUrl) return null;
   return ClientServices.getPhotoUrl(client.value.photoUrl);
@@ -147,6 +162,7 @@ onMounted(async () => {
                 <div class="mb-2"><strong>Housing Type:</strong> {{ lookupValue(housingTypes, client.housingTypeId) }}</div>
                 <div class="mb-2"><strong>Red/Green:</strong> {{ client.housingRedGreen || '–' }}</div>
                 <div class="mb-2"><strong>Housing Location:</strong> {{ lookupValue(housingLocations, client.housingLocationId) }}</div>
+                <div class="mb-2"><strong>Daytime location:</strong> {{ daytimeLocationDisplay }}</div>
                 <template v-if="lookupValue(housingLocations, client.housingLocationId) === 'Address'">
                   <div class="mb-2"><strong>Street:</strong> {{ client.housingStreet || '–' }}</div>
                   <div class="mb-2"><strong>Apt #:</strong> {{ client.housingApt || '–' }}</div>
