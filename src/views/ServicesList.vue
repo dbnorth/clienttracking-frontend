@@ -175,7 +175,11 @@ onUnmounted(() => {
               />
             </v-col>
             <v-col cols="12" md="2" class="d-flex align-center">
-              <v-btn variant="outlined" size="small" @click="clearFilters">Clear filters</v-btn>
+              <v-tooltip text="Clear all filters" location="top">
+                <template #activator="{ props: tp }">
+                  <v-btn v-bind="tp" variant="outlined" size="small" @click="clearFilters">Clear filters</v-btn>
+                </template>
+              </v-tooltip>
             </v-col>
           </v-row>
           <b>{{ message }}</b>
@@ -207,11 +211,11 @@ onUnmounted(() => {
               </td>
               <td>{{ getStatusDate(row) }}</td>
               <td>
-                <v-tooltip text="View Encounter" location="top">
-                  <template #activator="{ props: tooltipProps }">
+                <v-tooltip text="View encounter" location="top">
+                  <template #activator="{ props: tp }">
                     <v-icon
                       v-if="getEncounterId(row)"
-                      v-bind="tooltipProps"
+                      v-bind="tp"
                       small
                       class="mr-2"
                       @click="openViewEncounter(row)"
@@ -220,11 +224,9 @@ onUnmounted(() => {
                     </v-icon>
                   </template>
                 </v-tooltip>
-                <v-tooltip text="View Client" location="top">
-                  <template #activator="{ props: tooltipProps }">
-                    <v-icon v-bind="tooltipProps" small @click="openViewClient(row)">
-                      mdi-account
-                    </v-icon>
+                <v-tooltip text="View client" location="top">
+                  <template #activator="{ props: tp }">
+                    <v-icon v-bind="tp" small class="mr-2" @click="openViewClient(row)">mdi-account</v-icon>
                   </template>
                 </v-tooltip>
               </td>
