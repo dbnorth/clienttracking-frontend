@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch } from "vue";
+import { ref, computed, watch, onUnmounted } from "vue";
 import ClientDocumentServices from "../services/clientDocumentServices.js";
 import Utils from "../config/utils.js";
 import { getClientFullDisplayName } from "../utils/clientNameUtils.js";
@@ -36,9 +36,46 @@ const addFile = ref(null);
 
 const previewOpen = ref(false);
 const previewDoc = ref(null);
-const previewUrl = computed(() =>
-  previewDoc.value ? ClientDocumentServices.getFileUrl(previewDoc.value.fileUrl) : ""
+const previewBlobUrl = ref("");
+const previewLoading = ref(false);
+const previewLoadError = ref("");
+
+function revokePreviewUrl() {
+  if (previewBlobUrl.value) {
+    URL.revokeObjectURL(previewBlobUrl.value);
+    previewBlobUrl.value = "";
+  }
+}
+
+watch(
+  () => [previewOpen.value, previewDoc.value?.id, props.client?.id],
+  async () => {
+    revokePreviewUrl();
+    previewLoadError.value = "";
+    if (!previewOpen.value || !previewDoc.value?.id || !props.client?.id) return;
+    previewLoading.value = true;
+    try {
+      const res = await ClientDocumentServices.downloadFile(props.client.id, previewDoc.value.id);
+      const raw = res.data;
+      const mime = previewDoc.value.mimeType || "application/octet-stream";
+      const buf = raw instanceof Blob ? await raw.arrayBuffer() : raw;
+      previewBlobUrl.value = URL.createObjectURL(new Blob([buf], { type: mime }));
+    } catch (e) {
+      previewLoadError.value = e.response?.data?.message || e.message || "Could not load document.";
+    } finally {
+      previewLoading.value = false;
+    }
+  },
+  { flush: "post" }
 );
+
+onUnmounted(() => {
+  revokePreviewUrl();
+});
+
+const openPreviewInNewTab = () => {
+  if (previewBlobUrl.value) window.open(previewBlobUrl.value, "_blank", "noopener,noreferrer");
+};
 
 const isPdf = computed(() => {
   const m = previewDoc.value?.mimeType || "";
@@ -326,12 +363,10 @@ const confirmDelete = async () => {
         <span>{{ typeTitle(previewDoc.documentType) }}</span>
         <v-spacer />
         <v-btn
-          v-if="previewUrl"
-          :href="previewUrl"
-          target="_blank"
-          rel="noopener"
+          v-if="previewBlobUrl"
           variant="text"
           prepend-icon="mdi-open-in-new"
+          @click="openPreviewInNewTab"
         >
           Open in new tab
         </v-btn>
@@ -340,17 +375,24 @@ const confirmDelete = async () => {
         </v-btn>
       </v-card-title>
       <v-card-text>
-        <iframe v-if="isPdf && previewUrl" :src="previewUrl" title="Document" style="width: 100%; height: 75vh; border: 0" />
-        <div v-else-if="isRasterImage && previewUrl" class="d-flex justify-center">
-          <img :src="previewUrl" alt="Document" style="max-width: 100%; max-height: 75vh; object-fit: contain" />
+        <v-progress-linear v-if="previewLoading" indeterminate class="mb-3" />
+        <v-alert v-if="previewLoadError" type="error" density="compact" class="mb-3">{{ previewLoadError }}</v-alert>
+        <iframe
+          v-if="isPdf && previewBlobUrl && !previewLoading"
+          :src="previewBlobUrl"
+          title="Document"
+          style="width: 100%; height: 75vh; border: 0"
+        />
+        <div v-else-if="isRasterImage && previewBlobUrl && !previewLoading" class="d-flex justify-center">
+          <img :src="previewBlobUrl" alt="Document" style="max-width: 100%; max-height: 75vh; object-fit: contain" />
         </div>
-        <div v-else-if="isHeic && previewUrl" class="py-4">
+        <div v-else-if="isHeic && previewBlobUrl && !previewLoading" class="py-4">
           <p class="mb-2">HEIC/HEIF may not preview in the browser.</p>
-          <v-btn :href="previewUrl" target="_blank" rel="noopener" color="primary">Download / open file</v-btn>
+          <v-btn color="primary" @click="openPreviewInNewTab">Download / open file</v-btn>
         </div>
-        <div v-else-if="previewUrl" class="py-4">
+        <div v-else-if="previewBlobUrl && !previewLoading" class="py-4">
           <p class="mb-2">Preview not available in the browser.</p>
-          <v-btn :href="previewUrl" target="_blank" rel="noopener" color="primary">Open file</v-btn>
+          <v-btn color="primary" @click="openPreviewInNewTab">Open file</v-btn>
         </div>
       </v-card-text>
     </v-card>

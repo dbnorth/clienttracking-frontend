@@ -1,8 +1,6 @@
 import apiClient from "./services.js";
 import Utils from "../config/utils.js";
 
-const getBaseUrl = () => (import.meta.env.DEV ? "http://localhost:3200/clienttracking/" : "/clienttracking/");
-
 const formDataTransform = (data, headers) => {
   const user = Utils.getStore("user");
   if (user?.token) headers["Authorization"] = "Bearer " + user.token;
@@ -33,9 +31,13 @@ export default {
   remove(clientId, documentId) {
     return apiClient.delete(`/clients/${clientId}/documents/${documentId}`);
   },
-  getFileUrl(fileUrl) {
-    if (!fileUrl) return null;
-    const base = getBaseUrl();
-    return fileUrl.startsWith("http") ? fileUrl : `${base}uploads/${fileUrl}`;
+  /**
+   * Decrypted file bytes (auth required). Client documents are encrypted on disk; do not use static /uploads URLs.
+   */
+  downloadFile(clientId, documentId) {
+    return apiClient.get(`/clients/${clientId}/documents/${documentId}/file`, {
+      responseType: "blob",
+      transformResponse: [(data) => data],
+    });
   },
 };
