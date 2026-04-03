@@ -141,8 +141,16 @@ onUnmounted(() => {
               <td>{{ row.encounterType?.value || "–" }}</td>
               <td>{{ row.notes || "–" }}</td>
               <td>
-                <v-icon small class="mr-2" @click="viewEncounter(row)">mdi-eye</v-icon>
-                <v-icon small class="mr-2" @click="editEncounter(row)">mdi-pencil</v-icon>
+                <v-tooltip text="View encounter" location="top">
+                  <template #activator="{ props: tp }">
+                    <v-icon v-bind="tp" small class="mr-2" @click="viewEncounter(row)">mdi-eye</v-icon>
+                  </template>
+                </v-tooltip>
+                <v-tooltip text="Edit encounter" location="top">
+                  <template #activator="{ props: tp }">
+                    <v-icon v-bind="tp" small class="mr-2" @click="editEncounter(row)">mdi-pencil</v-icon>
+                  </template>
+                </v-tooltip>
               </td>
             </tr>
             <tr v-if="!encounters.length">
