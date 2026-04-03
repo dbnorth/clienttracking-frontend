@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, nextTick } from "vue";
 import ClientForm from "../components/ClientForm.vue";
 import ClientServices from "../services/clientServices";
 import LookupServices from "../services/lookupServices";
@@ -21,6 +21,7 @@ const intakeLocations = ref([]);
 const drugOfChoice = ref([]);
 const housingTypes = ref([]);
 const housingLocations = ref([]);
+const daytimeLocations = ref([]);
 const races = ref([]);
 const ethnicities = ref([]);
 const genders = ref([]);
@@ -54,6 +55,8 @@ const client = ref({
   housingTypeId: null,
   housingRedGreen: null,
   housingLocationId: null,
+  daytimeLocationId: null,
+  daytimeLocationOther: "",
   housingStreet: "",
   housingApt: "",
   housingCity: "",
@@ -66,13 +69,14 @@ const client = ref({
 
 const loadLookups = async () => {
   try {
-    const [r, o, loc, d, h, hl, race, ethn, g, init, b] = await Promise.all([
+    const [r, o, loc, d, h, hl, dl, race, ethn, g, init, b] = await Promise.all([
       LookupServices.getByType("referral_type"),
       ReferringOrganizationServices.getAll(),
       LocationServices.getAll(),
       LookupServices.getByType("drug_of_choice"),
       LookupServices.getByType("housing_type"),
       LookupServices.getByType("housing_location"),
+      LookupServices.getByType("daytime_location"),
       LookupServices.getByType("race"),
       LookupServices.getByType("ethnicity"),
       LookupServices.getByType("gender"),
@@ -85,6 +89,7 @@ const loadLookups = async () => {
     drugOfChoice.value = d.data;
     housingTypes.value = h.data;
     housingLocations.value = hl.data;
+    daytimeLocations.value = dl.data;
     races.value = race.data;
     ethnicities.value = ethn.data;
     genders.value = g.data;
@@ -132,7 +137,11 @@ const saveClient = async () => {
 
 const cancel = () => router.back();
 
-onMounted(() => loadLookups());
+onMounted(async () => {
+  await loadLookups();
+  await nextTick();
+  clientFormRef.value?.focusFirstField?.();
+});
 </script>
 
 <template>
@@ -146,7 +155,7 @@ onMounted(() => loadLookups());
       <br />
       <ClientForm ref="clientFormRef" v-model="client" :referral-types="referralTypes" :organizations="organizations"
         :intake-locations="intakeLocations" :drug-of-choice="drugOfChoice" :housing-types="housingTypes"
-        :housing-locations="housingLocations" :races="races" :ethnicities="ethnicities" :genders="genders" :initial-situations="initialSituations" :benefits="benefits" />
+        :housing-locations="housingLocations" :daytime-locations="daytimeLocations" :races="races" :ethnicities="ethnicities" :genders="genders" :initial-situations="initialSituations" :benefits="benefits" />
       <div class="d-flex align-center mt-4">
         <v-spacer />
         <v-btn variant="text" @click="cancel">Cancel</v-btn>

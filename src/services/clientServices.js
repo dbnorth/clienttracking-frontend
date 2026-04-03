@@ -5,7 +5,7 @@ const getBaseUrl = () => (import.meta.env.DEV ? "http://localhost:3200/clienttra
 
 export default {
   getAll(params = {}) {
-    const { userId, organizationId, name, phone, intakeLocationId, housingLocationId } = params;
+    const { userId, organizationId, name, phone, intakeLocationId, housingLocationId, addedOn } = params;
     const queryParams = {};
     if (organizationId) queryParams.organizationId = organizationId;
     else if (userId) queryParams.userId = userId;
@@ -13,6 +13,7 @@ export default {
     if (phone) queryParams.phone = phone;
     if (intakeLocationId) queryParams.intakeLocationId = intakeLocationId;
     if (housingLocationId) queryParams.housingLocationId = housingLocationId;
+    if (addedOn) queryParams.addedOn = addedOn;
     return apiClient.get("/clients", { params: queryParams });
   },
   get(id) {

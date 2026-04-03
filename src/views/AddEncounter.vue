@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from "vue";
-import { useRouter } from "vue-router";
+import { useRouter, useRoute } from "vue-router";
 import ClientServices from "../services/clientServices";
 import ClientServiceServices from "../services/clientserviceServices";
 import LookupServices from "../services/lookupServices";
@@ -9,6 +9,7 @@ import { formatPhoneForDisplay } from "../utils/phoneUtils.js";
 import { getClientFullDisplayName } from "../utils/clientNameUtils.js";
 
 const router = useRouter();
+const route = useRoute();
 const message = ref("Select a client and mark services requested or provided.");
 const selectedClient = ref(null);
 const clients = ref([]);
@@ -23,6 +24,7 @@ const encounterNotes = ref("");
 const encounterTypeId = ref(null);
 const encounterTypes = ref([]);
 const encounterFormRef = ref(null);
+const clientSearchFieldRef = ref(null);
 const requiredEncounterType = [(v) => (v != null && v !== "") || "Encounter type is required"];
 const onEncounterTypeChange = async () => {
   // Re-validate immediately so required error clears once a value is selected.
@@ -55,6 +57,9 @@ const getClientDisplayName = (c) => {
   if (!c) return "";
   return getClientFullDisplayName(c) || `Client #${c.id}`;
 };
+
+/** Zebra striping for the four cells in one service row (shared CSS grid). */
+const encounterServiceRowClass = (idx) => (idx % 2 === 1 ? "encounter-service-data-row--alt" : "encounter-service-data-row");
 
 const getClientPhotoUrl = (c) => (c?.photoUrl ? ClientServices.getPhotoUrl(c.photoUrl) : null);
 
@@ -413,6 +418,8 @@ onMounted(async () => {
   ]);
   services.value = svcRes.data || [];
   encounterTypes.value = typeRes.data || [];
+  const inPerson = encounterTypes.value.find((t) => t.value === "In Person");
+  if (inPerson?.id != null) encounterTypeId.value = inPerson.id;
   serviceSelections.value = services.value.map((s) => ({
     id: s.id,
     value: s.value,
@@ -420,6 +427,27 @@ onMounted(async () => {
     provided: false,
     cancelled: false,
   }));
+
+  const preId = route.query.clientId;
+  if (preId != null && String(preId).trim() !== "") {
+    const id = parseInt(String(preId), 10);
+    if (!Number.isNaN(id)) {
+      try {
+        const res = await ClientServices.get(id);
+        if (res.data?.id) selectedClient.value = res.data;
+      } catch (_) {
+        /* user can search for a client */
+      }
+    }
+  }
+  await nextTick();
+  const field = clientSearchFieldRef.value;
+  if (field && typeof field.focus === "function") {
+    field.focus();
+  } else {
+    const input = field?.$el?.querySelector?.("input");
+    input?.focus?.();
+  }
 });
 onUnmounted(() => {
   if (nowInterval) clearInterval(nowInterval);
@@ -461,6 +489,7 @@ onUnmounted(() => {
         <v-sheet class="rounded-lg mb-4 pa-4" border>
           <div class="text-subtitle-1 mb-3 font-weight-medium">Select Client</div>
           <v-autocomplete
+            ref="clientSearchFieldRef"
             v-model="selectedClient"
             :items="clientsWithLabel"
             :loading="loading"
@@ -503,67 +532,65 @@ onUnmounted(() => {
 
       <v-sheet class="rounded-lg pa-0 overflow-hidden" border>
         <div class="text-subtitle-1 pa-3 bg-grey-lighten-3 font-weight-medium">Services Provided</div>
-        <v-table density="compact">
-          <thead>
-            <tr>
-              <th></th>
-              <th class="text-center" style="width: 120px">Requested</th>
-              <th class="text-center" style="width: 120px">Provided</th>
-              <th class="text-center" style="width: 100px">Cancel</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="(svc, idx) in serviceSelections" :key="svc.id">
-              <td>
-                <strong>{{ svc.value }}</strong> <span class="text-medium-emphasis">({{ getProvidedCount(svc.id) }} {{ getProvidedCount(svc.id) === 1 ? 'time' : 'times' }})</span>
-                <span v-if="getLastDateForService(svc.id)" class="text-caption text-medium-emphasis d-block">
+        <div class="encounter-services-list px-3 pb-2">
+          <div v-if="serviceSelections.length" class="encounter-services-cells text-caption text-medium-emphasis">
+            <div class="encounter-services-h-spacer" />
+            <div class="encounter-services-check-h">Requested</div>
+            <div class="encounter-services-check-h">Provided</div>
+            <div class="encounter-services-check-h">Cancel</div>
+            <template v-for="(svc, idx) in serviceSelections" :key="svc.id">
+              <div
+                class="encounter-service-label encounter-services-cell"
+                :class="encounterServiceRowClass(idx)"
+              >
+                <div class="encounter-service-title">
+                  <strong>{{ svc.value }}</strong> <span class="text-medium-emphasis">({{ getProvidedCount(svc.id) }} {{ getProvidedCount(svc.id) === 1 ? "time" : "times" }})</span>
+                </div>
+                <div v-if="getLastDateForService(svc.id)" class="text-caption text-medium-emphasis encounter-service-meta">
                   {{ getLastDateForService(svc.id).text }}
-                </span>
-              </td>
-              <td class="text-center">
-                <div class="d-flex justify-center">
-                  <v-checkbox
-                    :model-value="svc.requested"
+                </div>
+              </div>
+              <div class="encounter-services-check-cell encounter-services-cell" :class="encounterServiceRowClass(idx)">
+                <v-checkbox
+                  :model-value="svc.requested"
                   :disabled="showsLastRequested(svc.id)"
                   hide-details
                   density="compact"
                   color="primary"
+                  class="encounter-service-checkbox"
                   @update:model-value="(v) => setRequested(idx, v)"
-                  />
-                </div>
-              </td>
-              <td class="text-center">
-                <div class="d-flex justify-center">
-                  <v-checkbox
-                    :model-value="svc.provided"
+                />
+              </div>
+              <div class="encounter-services-check-cell encounter-services-cell" :class="encounterServiceRowClass(idx)">
+                <v-checkbox
+                  :model-value="svc.provided"
                   :disabled="!!svc.cancelled"
                   hide-details
                   density="compact"
                   color="success"
+                  class="encounter-service-checkbox"
                   @update:model-value="(v) => setProvided(idx, v)"
-                  />
-                </div>
-              </td>
-              <td class="text-center">
-                <div class="d-flex justify-center">
-                  <v-checkbox
-                    v-if="hasPendingRequest(svc.id)"
+                />
+              </div>
+              <div class="encounter-services-check-cell encounter-services-cell" :class="encounterServiceRowClass(idx)">
+                <v-checkbox
+                  v-if="hasPendingRequest(svc.id)"
                   :model-value="svc.cancelled"
                   :disabled="!!svc.provided"
                   hide-details
                   density="compact"
                   color="error"
+                  class="encounter-service-checkbox"
                   @update:model-value="(v) => setCancel(idx, v)"
-                  />
-                  <span v-else class="text-caption text-disabled">—</span>
-                </div>
-              </td>
-            </tr>
-            <tr v-if="!serviceSelections.length">
-              <td colspan="4" class="text-center text-medium-emphasis">No services configured. Add them in Admin.</td>
-            </tr>
-          </tbody>
-        </v-table>
+                />
+                <span v-else class="text-caption text-disabled">—</span>
+              </div>
+            </template>
+          </div>
+          <div v-else class="text-center text-medium-emphasis py-4">
+            No services configured. Add them in Admin.
+          </div>
+        </div>
       </v-sheet>
 
       <div class="d-flex align-center mt-4">
@@ -634,3 +661,70 @@ onUnmounted(() => {
     </v-container>
   </div>
 </template>
+
+<style scoped>
+/* One grid: column 1 is max-content (widest label), so checkboxes sit right after text — no full-width gap. */
+.encounter-services-cells {
+  display: grid;
+  grid-template-columns: max-content 7rem 7rem 7rem;
+  /* No column-gap — gaps show the sheet behind and break zebra striping across the row. */
+  column-gap: 0;
+  row-gap: 0;
+  /* stretch so each row’s cells share one height; otherwise backgrounds only cover content (short label / “—” column). */
+  align-items: stretch;
+  padding-top: 4px;
+}
+.encounter-services-h-spacer {
+  border-bottom: thin solid rgba(var(--v-border-color), var(--v-border-opacity));
+  min-height: 2.25rem;
+}
+.encounter-services-check-h {
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+  text-align: center;
+  line-height: 1.15;
+  padding: 0 6px 6px;
+  border-bottom: thin solid rgba(var(--v-border-color), var(--v-border-opacity));
+  align-self: end;
+  white-space: nowrap;
+}
+.encounter-services-cell {
+  padding: 3px 6px;
+}
+.encounter-service-data-row {
+  background-color: rgb(var(--v-theme-surface));
+}
+.encounter-service-data-row--alt {
+  background-color: rgba(var(--v-theme-on-surface), 0.045);
+}
+.encounter-service-label {
+  min-width: 0;
+  max-width: min(72rem, calc(100vw - 22.5rem));
+  word-break: break-word;
+}
+.encounter-service-title {
+  line-height: 1.25;
+}
+.encounter-service-meta {
+  line-height: 1.2;
+  margin-top: 2px;
+}
+.encounter-services-check-cell {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  width: 100%;
+  min-width: 0;
+  justify-self: stretch;
+}
+.encounter-service-checkbox :deep(.v-selection-control) {
+  min-height: 28px;
+}
+.encounter-service-checkbox :deep(.v-input__control) {
+  min-height: 28px;
+}
+.encounter-service-checkbox :deep(.v-selection-control__wrapper) {
+  height: 28px;
+}
+</style>

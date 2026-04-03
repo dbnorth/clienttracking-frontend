@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted, watch } from "vue";
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from "vue";
 import Utils from "../config/utils.js";
 import ReferringOrganizationServices from "../services/referringOrganizationServices";
 import OrganizationServices from "../services/organizationServices";
@@ -22,6 +22,7 @@ const lookups = ref([]);
 const LOOKUP_TYPES = [
   { value: "referring_organization_type", label: "Referring Organization Types" },
   { value: "housing_location", label: "Housing Locations" },
+  { value: "daytime_location", label: "Daytime locations" },
   { value: "race", label: "Races" },
   { value: "ethnicity", label: "Ethnicities" },
   { value: "gender", label: "Genders" },
@@ -41,10 +42,16 @@ const selectedListValuesOrgId = ref(null);
 const users = ref([]);
 
 const showRefOrgDialog = ref(false);
+const refOrgNameFieldRef = ref(null);
 const showOrgDialog = ref(false);
+const orgNameFieldRef = ref(null);
 const showLocationDialog = ref(false);
+const locationOrgFieldRef = ref(null);
+const locationNameFieldRef = ref(null);
 const showLookupDialog = ref(false);
+const lookupValueFieldRef = ref(null);
 const showUserDialog = ref(false);
+const userFirstNameFieldRef = ref(null);
 const refOrgForm = ref({ id: null, name: "", caseWorkerName: "", phone: "", referringOrganizationTypeId: null });
 const orgForm = ref({ id: null, name: "", contactName: "", phoneNumber: "", street: "", city: "", state: "", zip: "", logoUrl: null, primaryColor: "#80162B" });
 const locationForm = ref({ id: null, organizationId: null, name: "", address: "", city: "", state: "", zip: "", contactName: "", phoneNumber: "" });
@@ -482,6 +489,59 @@ const nextSortOrder = () => {
   const items = filteredLookups();
   if (!items.length) return 0;
   return Math.max(...items.map((l) => l.sortOrder ?? 0)) + 1;
+};
+
+const focusLookupValueField = async () => {
+  await nextTick();
+  const field = lookupValueFieldRef.value;
+  if (field && typeof field.focus === "function") {
+    field.focus();
+  } else {
+    field?.$el?.querySelector?.("input")?.focus?.();
+  }
+};
+
+const focusRefOrgFirstField = async () => {
+  await nextTick();
+  const field = refOrgNameFieldRef.value;
+  if (field && typeof field.focus === "function") {
+    field.focus();
+  } else {
+    field?.$el?.querySelector?.("input")?.focus?.();
+  }
+};
+
+const focusOrgFirstField = async () => {
+  await nextTick();
+  await nextTick();
+  const field = orgNameFieldRef.value;
+  if (field && typeof field.focus === "function") {
+    field.focus();
+  } else {
+    field?.$el?.querySelector?.("input")?.focus?.();
+  }
+};
+
+const focusUserFirstField = async () => {
+  await nextTick();
+  const field = userFirstNameFieldRef.value;
+  if (field && typeof field.focus === "function") {
+    field.focus();
+  } else {
+    field?.$el?.querySelector?.("input")?.focus?.();
+  }
+};
+
+const focusLocationFirstField = async () => {
+  await nextTick();
+  await nextTick();
+  const targetRef = isSuperAdmin.value ? locationOrgFieldRef : locationNameFieldRef;
+  const field = targetRef.value;
+  if (field && typeof field.focus === "function") {
+    field.focus();
+  } else {
+    field?.$el?.querySelector?.("input")?.focus?.();
+  }
 };
 
 const openAddLookup = () => {
@@ -936,11 +996,11 @@ onUnmounted(() => {
       </v-window-item>
     </v-window>
 
-    <v-dialog v-model="showRefOrgDialog" max-width="480" persistent>
+    <v-dialog v-model="showRefOrgDialog" max-width="480" persistent @after-enter="focusRefOrgFirstField">
       <v-card>
         <v-card-title>{{ refOrgForm.id ? "Edit" : "Add" }} Referring Organization</v-card-title>
         <v-card-text>
-          <v-text-field v-model="refOrgForm.name" label="Name" />
+          <v-text-field ref="refOrgNameFieldRef" v-model="refOrgForm.name" label="Name" density="compact" />
           <v-select
             v-model="refOrgForm.referringOrganizationTypeId"
             :items="referringOrgTypes()"
@@ -960,7 +1020,7 @@ onUnmounted(() => {
       </v-card>
     </v-dialog>
 
-    <v-dialog v-model="showOrgDialog" max-width="520" persistent>
+    <v-dialog v-model="showOrgDialog" max-width="520" persistent @after-enter="focusOrgFirstField">
       <v-card>
         <v-card-title>{{ orgForm.id ? "Edit" : "Add" }} Organization</v-card-title>
         <v-card-text>
@@ -1024,7 +1084,7 @@ onUnmounted(() => {
               />
             </div>
           </div>
-          <v-text-field v-model="orgForm.name" label="Organization Name" />
+          <v-text-field ref="orgNameFieldRef" v-model="orgForm.name" label="Organization Name" density="compact" />
           <v-text-field v-model="orgForm.contactName" label="Contact Name" />
           <PhoneInput v-model="orgForm.phoneNumber" label="Phone Number" />
           <v-text-field v-model="orgForm.street" label="Street" />
@@ -1040,11 +1100,12 @@ onUnmounted(() => {
       </v-card>
     </v-dialog>
 
-    <v-dialog v-model="showLocationDialog" max-width="520" persistent>
+    <v-dialog v-model="showLocationDialog" max-width="520" persistent @after-enter="focusLocationFirstField">
       <v-card>
         <v-card-title>{{ locationForm.id ? "Edit" : "Add" }} Location</v-card-title>
         <v-card-text>
           <v-select
+            ref="locationOrgFieldRef"
             v-model="locationForm.organizationId"
             :items="organizationsForTenantSelect"
             item-title="name"
@@ -1055,7 +1116,7 @@ onUnmounted(() => {
             :hint="locationOrganizationHint"
             persistent-hint
           />
-          <v-text-field v-model="locationForm.name" label="Name" />
+          <v-text-field ref="locationNameFieldRef" v-model="locationForm.name" label="Name" density="compact" />
           <v-text-field v-model="locationForm.address" label="Address" />
           <v-row dense>
             <v-col cols="12" sm="5">
@@ -1079,13 +1140,14 @@ onUnmounted(() => {
       </v-card>
     </v-dialog>
 
-    <v-dialog v-model="showUserDialog" max-width="480" persistent>
+    <v-dialog v-model="showUserDialog" max-width="480" persistent @after-enter="focusUserFirstField">
       <v-card>
         <v-card-title>{{ userForm.id ? "Edit User" : "Add User" }}</v-card-title>
         <v-card-text>
           <v-form ref="userFormRef" validate-on="submit lazy">
             <div class="text-caption text-medium-emphasis mb-3">* required field</div>
             <v-text-field
+              ref="userFirstNameFieldRef"
               v-model="userForm.fName"
               label="First Name *"
               :rules="requiredText"
@@ -1145,7 +1207,7 @@ onUnmounted(() => {
       </v-card>
     </v-dialog>
 
-    <v-dialog v-model="showLookupDialog" max-width="420" persistent>
+    <v-dialog v-model="showLookupDialog" max-width="420" persistent @after-enter="focusLookupValueField">
       <v-card>
         <v-card-title>{{ lookupForm.id ? "Edit" : "Add" }} {{ LOOKUP_TYPES.find((t) => t.value === lookupForm.type)?.label || lookupForm.type }}</v-card-title>
         <v-card-text>
@@ -1161,7 +1223,7 @@ onUnmounted(() => {
             :hint="lookupOrganizationHint"
             persistent-hint
           />
-          <v-text-field v-model="lookupForm.value" label="Value" />
+          <v-text-field ref="lookupValueFieldRef" v-model="lookupForm.value" label="Value" density="compact" />
           <v-text-field v-model.number="lookupForm.sortOrder" label="Sort Order" type="number" />
           <v-select v-model="lookupForm.status" :items="['Active','Inactive']" label="Status" hint="Inactive options are hidden from dropdowns" persistent-hint />
         </v-card-text>

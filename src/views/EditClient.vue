@@ -19,6 +19,7 @@ const intakeLocations = ref([]);
 const drugOfChoice = ref([]);
 const housingTypes = ref([]);
 const housingLocations = ref([]);
+const daytimeLocations = ref([]);
 const races = ref([]);
 const ethnicities = ref([]);
 const genders = ref([]);
@@ -28,13 +29,14 @@ const client = ref({});
 
 const loadLookups = async () => {
   try {
-    const [r, o, loc, d, h, hl, race, ethn, g, init, b] = await Promise.all([
+    const [r, o, loc, d, h, hl, dl, race, ethn, g, init, b] = await Promise.all([
       LookupServices.getByType("referral_type"),
       ReferringOrganizationServices.getAll(),
       LocationServices.getAll(),
       LookupServices.getByType("drug_of_choice"),
       LookupServices.getByType("housing_type"),
       LookupServices.getByType("housing_location"),
+      LookupServices.getByType("daytime_location"),
       LookupServices.getByType("race"),
       LookupServices.getByType("ethnicity"),
       LookupServices.getByType("gender"),
@@ -47,6 +49,7 @@ const loadLookups = async () => {
     drugOfChoice.value = d.data;
     housingTypes.value = h.data;
     housingLocations.value = hl.data;
+    daytimeLocations.value = dl.data;
     races.value = race.data;
     ethnicities.value = ethn.data;
     genders.value = g.data;
@@ -108,7 +111,7 @@ onMounted(async () => {
       <br />
       <ClientForm ref="clientFormRef" v-if="client.id" v-model="client" :referral-types="referralTypes" :organizations="organizations"
         :intake-locations="intakeLocations" :drug-of-choice="drugOfChoice" :housing-types="housingTypes"
-        :housing-locations="housingLocations" :races="races" :ethnicities="ethnicities" :genders="genders" :initial-situations="initialSituations" :benefits="benefits" />
+        :housing-locations="housingLocations" :daytime-locations="daytimeLocations" :races="races" :ethnicities="ethnicities" :genders="genders" :initial-situations="initialSituations" :benefits="benefits" />
       <div class="d-flex align-center mt-4">
         <v-spacer />
         <v-btn variant="text" @click="cancel">Cancel</v-btn>
