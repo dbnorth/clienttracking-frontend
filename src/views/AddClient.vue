@@ -125,13 +125,11 @@ const loadLookups = async () => {
     organizations.value = o.data;
     intakeLocations.value = loc.data;
     await reloadTypeLookups();
-    const org = user?.organization;
-    if (org) {
-      client.value.emergencyContactName = org.contactName || client.value.emergencyContactName;
-      client.value.emergencyContactPhone = org.phoneNumber || client.value.emergencyContactPhone;
-    } else if (user?.organizationId) {
+    /** Superadmin: use “Act as organization”; others: home org (see Utils.effectiveOrganizationId). */
+    const emergencyOrgId = Utils.effectiveOrganizationId(user);
+    if (emergencyOrgId != null && emergencyOrgId !== "") {
       try {
-        const orgRes = await OrganizationServices.get(user.organizationId);
+        const orgRes = await OrganizationServices.get(emergencyOrgId);
         const fetchedOrg = orgRes.data;
         if (fetchedOrg) {
           client.value.emergencyContactName = fetchedOrg.contactName || client.value.emergencyContactName;

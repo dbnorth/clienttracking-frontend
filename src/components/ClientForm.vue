@@ -238,19 +238,8 @@ defineExpose({ validate, focusFirstField });
               @blur="() => commitClientName('lastName')"
             />
           </v-col>
-          <v-col cols="12" md="2">
+          <v-col cols="12" md="4">
             <v-text-field v-model="modelValue.suffix" label="Suffix" :readonly="readOnly" density="compact" />
-          </v-col>
-          <v-col cols="12" md="2">
-            <v-text-field
-              v-model="modelValue.birthdate"
-              type="date"
-              label="Birthdate *"
-              :readonly="readOnly"
-              :rules="readOnly ? [] : requiredDate"
-              density="compact"
-              @update:model-value="(v) => $emit('update:modelValue', { ...modelValue, birthdate: v })"
-            />
           </v-col>
         </v-row>
         <v-row class="mt-0">
@@ -266,7 +255,18 @@ defineExpose({ validate, focusFirstField });
             />
           </v-col>
         </v-row>
-        <v-row>
+        <v-row class="mt-0">
+          <v-col cols="12" md="4">
+            <v-text-field
+              v-model="modelValue.birthdate"
+              type="date"
+              label="Birthdate *"
+              :readonly="readOnly"
+              :rules="readOnly ? [] : requiredDate"
+              density="compact"
+              @update:model-value="(v) => $emit('update:modelValue', { ...modelValue, birthdate: v })"
+            />
+          </v-col>
           <v-col cols="12" md="4">
             <PhoneInput
               :model-value="modelValue.phone"
@@ -276,14 +276,16 @@ defineExpose({ validate, focusFirstField });
               @update:model-value="$emit('update:modelValue', { ...modelValue, phone: $event })"
             />
           </v-col>
-          <v-col cols="12" md="3">
+        </v-row>
+        <v-row>
+          <v-col cols="12" md="4">
             <v-select v-model="modelValue.housingTypeId" :items="housingTypes" item-title="value" item-value="id"
               label="Housing Type" clearable :readonly="readOnly" density="compact" />
           </v-col>
           <v-col cols="12" md="2">
             <v-select v-model="modelValue.housingRedGreen" :items="['Red','Green']" label="Red/Green" clearable :readonly="readOnly" density="compact" />
           </v-col>
-          <v-col cols="12" md="3">
+          <v-col cols="12" md="4">
             <v-select v-model="modelValue.housingLocationId" :items="housingLocations" item-title="value" item-value="id"
               label="Housing Location" clearable :readonly="readOnly" density="compact" />
           </v-col>
