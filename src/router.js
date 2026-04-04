@@ -14,6 +14,7 @@ import ServicesList from "./views/ServicesList.vue";
 import ServiceCountsList from "./views/ServiceCountsList.vue";
 import ReferralsList from "./views/ReferralsList.vue";
 import Admin from "./views/Admin.vue";
+import AdminStats from "./views/AdminStats.vue";
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -32,6 +33,7 @@ const router = createRouter({
     { path: "/encounters/view/:clientId/:id", name: "viewEncounter", component: ViewEncounter, props: true },
     { path: "/encounters/edit/:clientId/:id", name: "editEncounter", component: EditEncounter, props: true },
     { path: "/admin", name: "admin", component: Admin },
+    { path: "/admin/stats", name: "adminStats", component: AdminStats },
   ],
 });
 
@@ -43,7 +45,11 @@ router.beforeEach((to, _from, next) => {
     next({ name: "login" });
   } else if (user?.role === "none" && to.name !== "home" && to.name !== "login") {
     next({ name: "home" });
-  } else if (to.name === "admin" && user?.role !== "admin" && user?.role !== "superadmin") {
+  } else if (
+    (to.name === "admin" || to.name === "adminStats") &&
+    user?.role !== "admin" &&
+    user?.role !== "superadmin"
+  ) {
     next({ name: "home" });
   } else {
     next();

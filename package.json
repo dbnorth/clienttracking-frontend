@@ -12,9 +12,11 @@
   "dependencies": {
     "@mdi/font": "^7.0.96",
     "axios": "^1.1.3",
-    "vue": "^3.2.47",
-    "vue-router": "^4.1.6",
+    "chart.js": "^4.5.1",
     "vite-plugin-vuetify": "^2.1.0",
+    "vue": "^3.2.47",
+    "vue-chartjs": "^5.3.3",
+    "vue-router": "^4.1.6",
     "vuetify": "^3.0.1",
     "webfontloader": "^1.6.28"
   },

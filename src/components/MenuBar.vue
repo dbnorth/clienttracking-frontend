@@ -194,6 +194,7 @@ watch(user, () => {
           <v-btn class="mx-2" :to="{ name: 'services' }">Services</v-btn>
           <v-btn class="mx-2" :to="{ name: 'serviceCounts' }">Service counts</v-btn>
           <v-btn class="mx-2" :to="{ name: 'referrals' }">Referrals</v-btn>
+          <v-btn v-if="user.role === 'admin' || user.role === 'superadmin'" class="mx-2" :to="{ name: 'adminStats' }">Stats</v-btn>
           <v-btn v-if="user.role === 'admin' || user.role === 'superadmin'" class="mx-2" :to="{ name: 'admin' }">Admin</v-btn>
         </template>
       </div>
