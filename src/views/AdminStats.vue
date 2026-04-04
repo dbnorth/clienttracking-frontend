@@ -64,7 +64,7 @@ const chartOptions = {
     legend: { position: "top" },
     title: {
       display: true,
-      text: "Client service records by status (stacked counts per day)",
+      text: "Client service activity by date fields (grouped counts per day)",
     },
     tooltip: {
       mode: "index",
@@ -73,13 +73,17 @@ const chartOptions = {
   },
   scales: {
     x: {
-      stacked: true,
       ticks: { maxRotation: 45, minRotation: 0, autoSkip: true, maxTicksLimit: 31 },
     },
     y: {
-      stacked: true,
       beginAtZero: true,
       ticks: { precision: 0 },
+    },
+  },
+  datasets: {
+    bar: {
+      categoryPercentage: 0.75,
+      barPercentage: 0.85,
     },
   },
 };
@@ -138,9 +142,9 @@ onMounted(async () => {
         <v-toolbar-title>Statistics</v-toolbar-title>
       </v-toolbar>
       <p class="text-body-2 text-medium-emphasis mt-2 mb-4">
-        Counts of <strong>client service</strong> rows by status per day. Each row uses its status date (requested /
-        provided / cancelled). Scoped to your organization; superadmin uses <strong>Act as organization</strong> when
-        set.
+        Counts per day when <strong>requested</strong>, <strong>provided</strong>, or <strong>cancelled</strong> dates
+        are set (not the current status). One row can appear in more than one series if multiple dates fall in the
+        range. Scoped to your organization; superadmin uses <strong>Act as organization</strong> when set.
       </p>
 
       <v-card class="mb-4">
