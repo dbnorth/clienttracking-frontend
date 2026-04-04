@@ -11,6 +11,7 @@ import EncountersList from "./views/EncountersList.vue";
 import EditEncounter from "./views/EditEncounter.vue";
 import ViewEncounter from "./views/ViewEncounter.vue";
 import ServicesList from "./views/ServicesList.vue";
+import ServiceCountsList from "./views/ServiceCountsList.vue";
 import ReferralsList from "./views/ReferralsList.vue";
 import Admin from "./views/Admin.vue";
 
@@ -25,6 +26,7 @@ const router = createRouter({
     { path: "/view/:id", name: "viewClient", component: ViewClient, props: true },
     { path: "/encounters", name: "encounters", component: EncountersList },
     { path: "/services", name: "services", component: ServicesList },
+    { path: "/service-counts", name: "serviceCounts", component: ServiceCountsList },
     { path: "/referrals", name: "referrals", component: ReferralsList },
     { path: "/add-encounter", name: "addEncounter", component: AddEncounter },
     { path: "/encounters/view/:clientId/:id", name: "viewEncounter", component: ViewEncounter, props: true },

@@ -1048,7 +1048,7 @@ onUnmounted(() => {
                   </td>
                   <td>
                     <v-icon small class="mr-2" @click="openEditLookup(item)">mdi-pencil</v-icon>
-                    <v-icon small @click="deleteLookup(item)">mdi-trash-can</v-icon>
+                    <v-icon v-if="isSuperAdmin" small @click="deleteLookup(item)">mdi-trash-can</v-icon>
                   </td>
                 </tr>
                 <tr v-if="!filteredLookups().length">
