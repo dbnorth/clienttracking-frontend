@@ -5,6 +5,7 @@ import AuthServices from "../services/authServices";
 import OrganizationServices from "../services/organizationServices";
 import UserServices from "../services/userServices";
 import { useRouter } from "vue-router";
+import { toProperNameCase } from "../utils/nameCaseUtils.js";
 
 const router = useRouter();
 const user = ref(null);
@@ -110,8 +111,8 @@ const saveUserUpdate = () => {
   userUpdateSaving.value = true;
   userUpdateMessage.value = "";
   const data = {
-    fName: f.fName.trim(),
-    lName: f.lName.trim(),
+    fName: toProperNameCase(f.fName),
+    lName: toProperNameCase(f.lName),
     email: f.email.trim(),
     username: f.username.trim(),
     organizationId: f.organizationId || null,
@@ -248,8 +249,18 @@ watch(user, () => {
           <v-card-title>Update Profile</v-card-title>
           <v-card-text>
             <v-alert v-if="userUpdateMessage" type="error" density="compact" class="mb-3">{{ userUpdateMessage }}</v-alert>
-            <v-text-field v-model="userUpdateForm.fName" label="First Name" density="compact" />
-            <v-text-field v-model="userUpdateForm.lName" label="Last Name" density="compact" />
+            <v-text-field
+              v-model="userUpdateForm.fName"
+              label="First Name"
+              density="compact"
+              @blur="userUpdateForm.fName = toProperNameCase(userUpdateForm.fName)"
+            />
+            <v-text-field
+              v-model="userUpdateForm.lName"
+              label="Last Name"
+              density="compact"
+              @blur="userUpdateForm.lName = toProperNameCase(userUpdateForm.lName)"
+            />
             <v-text-field v-model="userUpdateForm.email" label="Email" type="email" density="compact" />
             <v-text-field v-model="userUpdateForm.username" label="Username" density="compact" />
             <v-text-field

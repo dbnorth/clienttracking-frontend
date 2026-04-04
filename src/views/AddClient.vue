@@ -8,6 +8,7 @@ import LocationServices from "../services/locationServices";
 import OrganizationServices from "../services/organizationServices";
 import Utils from "../config/utils.js";
 import { phoneRule } from "../utils/phoneUtils.js";
+import { toProperNameCase } from "../utils/nameCaseUtils.js";
 import {
   lookupQueryOpts,
   organizationIdForAddClientLookups,
@@ -173,6 +174,12 @@ const prepareClientPayload = async () => {
     }
   }
   const data = { ...client.value };
+  data.firstName = toProperNameCase(data.firstName);
+  data.middleName = toProperNameCase(data.middleName);
+  data.lastName = toProperNameCase(data.lastName);
+  data.nickname = toProperNameCase(data.nickname);
+  data.parentFirstName = toProperNameCase(data.parentFirstName);
+  data.parentLastName = toProperNameCase(data.parentLastName);
   data.dateOfFirstContact = new Date().toISOString().split("T")[0];
   data.statusChangeDate = data.dateOfFirstContact;
   data.userId = user?.userId;
