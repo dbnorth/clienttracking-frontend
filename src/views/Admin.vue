@@ -8,6 +8,7 @@ import LocationServices from "../services/locationServices";
 import UserServices from "../services/userServices";
 import PhoneInput from "../components/PhoneInput.vue";
 import { phoneRule, formatPhoneForDisplay } from "../utils/phoneUtils.js";
+import { toProperNameCase } from "../utils/nameCaseUtils.js";
 
 const tab = ref("organizations");
 const message = ref("");
@@ -51,6 +52,12 @@ const locationNameFieldRef = ref(null);
 const showLookupDialog = ref(false);
 const lookupValueFieldRef = ref(null);
 const showUserDialog = ref(false);
+/** Validation / API errors for Add/Edit User — shown inside the dialog (page `message` sits behind the overlay). */
+const userDialogError = ref("");
+const orgDialogError = ref("");
+const locationDialogError = ref("");
+const refOrgDialogError = ref("");
+const lookupDialogError = ref("");
 const userFirstNameFieldRef = ref(null);
 const refOrgForm = ref({ id: null, name: "", caseWorkerName: "", phone: "", referringOrganizationTypeId: null });
 const orgForm = ref({ id: null, name: "", contactName: "", phoneNumber: "", street: "", city: "", state: "", zip: "", logoUrl: null, primaryColor: "#80162B" });
@@ -165,7 +172,28 @@ const loadUsers = () => {
     .catch((e) => (message.value = e.response?.data?.message || "Error loading users"));
 };
 
+watch(showUserDialog, (open) => {
+  if (!open) userDialogError.value = "";
+});
+
+watch(showOrgDialog, (open) => {
+  if (!open) orgDialogError.value = "";
+});
+
+watch(showLocationDialog, (open) => {
+  if (!open) locationDialogError.value = "";
+});
+
+watch(showRefOrgDialog, (open) => {
+  if (!open) refOrgDialogError.value = "";
+});
+
+watch(showLookupDialog, (open) => {
+  if (!open) lookupDialogError.value = "";
+});
+
 const openAddUser = () => {
+  userDialogError.value = "";
   userForm.value = {
     id: null,
     fName: "",
@@ -180,6 +208,7 @@ const openAddUser = () => {
 };
 
 const openEditUser = (u) => {
+  userDialogError.value = "";
   const orgId = u.organizationId ?? u.organization?.id ?? null;
   userForm.value = {
     id: u.id,
@@ -195,11 +224,15 @@ const openEditUser = (u) => {
 };
 
 const saveUser = async () => {
+  userDialogError.value = "";
   const { valid } = (await userFormRef.value?.validate()) ?? { valid: false };
-  if (!valid) return;
+  if (!valid) {
+    userDialogError.value = "Please fill in all required fields.";
+    return;
+  }
   const data = {
-    fName: userForm.value.fName.trim(),
-    lName: userForm.value.lName.trim(),
+    fName: toProperNameCase(userForm.value.fName),
+    lName: toProperNameCase(userForm.value.lName),
     email: (userForm.value.email || "").trim() || null,
     username: userForm.value.username.trim(),
     organizationId: userForm.value.organizationId || null,
@@ -215,14 +248,18 @@ const saveUser = async () => {
         loadUsers();
         showUserDialog.value = false;
       })
-      .catch((e) => (message.value = e.response?.data?.message || "Error saving user"));
+      .catch((e) => {
+        userDialogError.value = e.response?.data?.message || "Error saving user";
+      });
   } else {
     UserServices.create(data)
       .then(() => {
         loadUsers();
         showUserDialog.value = false;
       })
-      .catch((e) => (message.value = e.response?.data?.message || "Error creating user"));
+      .catch((e) => {
+        userDialogError.value = e.response?.data?.message || "Error creating user";
+      });
   }
 };
 
@@ -241,11 +278,13 @@ watch(selectedLookupType, () => {
 const referringOrgTypes = () => lookups.value.filter((l) => l.type === "referring_organization_type");
 
 const openAddRefOrg = () => {
+  refOrgDialogError.value = "";
   refOrgForm.value = { id: null, name: "", caseWorkerName: "", phone: "", referringOrganizationTypeId: null };
   showRefOrgDialog.value = true;
 };
 
 const openEditRefOrg = (org) => {
+  refOrgDialogError.value = "";
   refOrgForm.value = {
     id: org.id,
     name: org.name,
@@ -257,13 +296,14 @@ const openEditRefOrg = (org) => {
 };
 
 const saveRefOrg = () => {
+  refOrgDialogError.value = "";
   if (!refOrgForm.value.name?.trim()) {
-    message.value = "Name is required.";
+    refOrgDialogError.value = "Name is required.";
     return;
   }
   const phoneErr = phoneRule(refOrgForm.value.phone);
   if (phoneErr !== true) {
-    message.value = phoneErr;
+    refOrgDialogError.value = phoneErr;
     return;
   }
   const data = {
@@ -278,14 +318,18 @@ const saveRefOrg = () => {
         loadReferringOrgs();
         showRefOrgDialog.value = false;
       })
-      .catch((e) => (message.value = e.response?.data?.message || "Error saving"));
+      .catch((e) => {
+        refOrgDialogError.value = e.response?.data?.message || "Error saving";
+      });
   } else {
     ReferringOrganizationServices.create(data)
       .then(() => {
         loadReferringOrgs();
         showRefOrgDialog.value = false;
       })
-      .catch((e) => (message.value = e.response?.data?.message || "Error saving"));
+      .catch((e) => {
+        refOrgDialogError.value = e.response?.data?.message || "Error saving";
+      });
   }
 };
 
@@ -303,12 +347,14 @@ const orgLogoFile = ref(null);
 const DEFAULT_PRIMARY_COLOR = "#80162B";
 
 const openAddOrg = () => {
+  orgDialogError.value = "";
   orgForm.value = { id: null, name: "", contactName: "", phoneNumber: "", street: "", city: "", state: "", zip: "", logoUrl: null, primaryColor: DEFAULT_PRIMARY_COLOR };
   orgLogoError.value = "";
   showOrgDialog.value = true;
 };
 
 const openEditOrg = (org) => {
+  orgDialogError.value = "";
   orgForm.value = { ...org, logoUrl: org.logoUrl || null, primaryColor: org.primaryColor || DEFAULT_PRIMARY_COLOR };
   orgLogoError.value = "";
   showOrgDialog.value = true;
@@ -359,13 +405,14 @@ const removeOrgLogo = () => {
 };
 
 const saveOrg = () => {
+  orgDialogError.value = "";
   if (!orgForm.value.name?.trim()) {
-    message.value = "Name is required.";
+    orgDialogError.value = "Name is required.";
     return;
   }
   const phoneErr = phoneRule(orgForm.value.phoneNumber);
   if (phoneErr !== true) {
-    message.value = phoneErr;
+    orgDialogError.value = phoneErr;
     return;
   }
   const data = {
@@ -385,7 +432,9 @@ const saveOrg = () => {
         showOrgDialog.value = false;
         window.dispatchEvent(new CustomEvent("org-updated"));
       })
-      .catch((e) => (message.value = e.response?.data?.message || "Error saving"));
+      .catch((e) => {
+        orgDialogError.value = e.response?.data?.message || "Error saving";
+      });
   } else {
     OrganizationServices.create(data)
       .then(() => {
@@ -393,7 +442,9 @@ const saveOrg = () => {
         showOrgDialog.value = false;
         window.dispatchEvent(new CustomEvent("org-updated"));
       })
-      .catch((e) => (message.value = e.response?.data?.message || "Error saving"));
+      .catch((e) => {
+        orgDialogError.value = e.response?.data?.message || "Error saving";
+      });
   }
 };
 
@@ -405,6 +456,7 @@ const deleteOrg = (org) => {
 };
 
 const openAddLocation = () => {
+  locationDialogError.value = "";
   locationForm.value = {
     id: null,
     organizationId: isSuperAdmin.value ? null : userOrganizationId.value,
@@ -420,6 +472,7 @@ const openAddLocation = () => {
 };
 
 const openEditLocation = (loc) => {
+  locationDialogError.value = "";
   locationForm.value = {
     id: loc.id,
     organizationId: loc.organizationId,
@@ -435,17 +488,18 @@ const openEditLocation = (loc) => {
 };
 
 const saveLocation = () => {
+  locationDialogError.value = "";
   if (!locationForm.value.name?.trim()) {
-    message.value = "Name is required.";
+    locationDialogError.value = "Name is required.";
     return;
   }
   if (!locationForm.value.organizationId) {
-    message.value = "Organization is required.";
+    locationDialogError.value = "Organization is required.";
     return;
   }
   const phoneErr = phoneRule(locationForm.value.phoneNumber);
   if (phoneErr !== true) {
-    message.value = phoneErr;
+    locationDialogError.value = phoneErr;
     return;
   }
   const data = {
@@ -467,14 +521,18 @@ const saveLocation = () => {
         loadLocations();
         showLocationDialog.value = false;
       })
-      .catch((e) => (message.value = e.response?.data?.message || "Error saving"));
+      .catch((e) => {
+        locationDialogError.value = e.response?.data?.message || "Error saving";
+      });
   } else {
     LocationServices.create(data)
       .then(() => {
         loadLocations();
         showLocationDialog.value = false;
       })
-      .catch((e) => (message.value = e.response?.data?.message || "Error saving"));
+      .catch((e) => {
+        locationDialogError.value = e.response?.data?.message || "Error saving";
+      });
   }
 };
 
@@ -545,6 +603,7 @@ const focusLocationFirstField = async () => {
 };
 
 const openAddLookup = () => {
+  lookupDialogError.value = "";
   lookupForm.value = {
     id: null,
     type: selectedLookupType.value,
@@ -559,6 +618,7 @@ const openAddLookup = () => {
 };
 
 const openEditLookup = (item) => {
+  lookupDialogError.value = "";
   lookupForm.value = {
     ...item,
     organizationId: isSuperAdmin.value
@@ -569,12 +629,13 @@ const openEditLookup = (item) => {
 };
 
 const saveLookup = () => {
+  lookupDialogError.value = "";
   if (!lookupForm.value.value?.trim()) {
-    message.value = "Value is required.";
+    lookupDialogError.value = "Value is required.";
     return;
   }
   if (isSuperAdmin.value && (lookupForm.value.organizationId == null || lookupForm.value.organizationId === "")) {
-    message.value = "Organization is required.";
+    lookupDialogError.value = "Organization is required.";
     return;
   }
   const data = {
@@ -593,14 +654,18 @@ const saveLookup = () => {
         loadLookups();
         showLookupDialog.value = false;
       })
-      .catch((e) => (message.value = e.response?.data?.message || "Error saving"));
+      .catch((e) => {
+        lookupDialogError.value = e.response?.data?.message || "Error saving";
+      });
   } else {
     LookupServices.create(data)
       .then(() => {
         loadLookups();
         showLookupDialog.value = false;
       })
-      .catch((e) => (message.value = e.response?.data?.message || "Error saving"));
+      .catch((e) => {
+        lookupDialogError.value = e.response?.data?.message || "Error saving";
+      });
   }
 };
 
@@ -996,10 +1061,28 @@ onUnmounted(() => {
       </v-window-item>
     </v-window>
 
-    <v-dialog v-model="showRefOrgDialog" max-width="480" persistent @after-enter="focusRefOrgFirstField">
+    <v-dialog
+      v-model="showRefOrgDialog"
+      max-width="480"
+      persistent
+      scrollable
+      :z-index="5000"
+      content-class="admin-form-dialog-content"
+      @after-enter="focusRefOrgFirstField"
+    >
       <v-card>
         <v-card-title>{{ refOrgForm.id ? "Edit" : "Add" }} Referring Organization</v-card-title>
         <v-card-text>
+          <v-alert
+            v-if="refOrgDialogError"
+            type="error"
+            density="compact"
+            class="mb-3"
+            closable
+            @click:close="refOrgDialogError = ''"
+          >
+            {{ refOrgDialogError }}
+          </v-alert>
           <v-text-field ref="refOrgNameFieldRef" v-model="refOrgForm.name" label="Name" density="compact" />
           <v-select
             v-model="refOrgForm.referringOrganizationTypeId"
@@ -1020,10 +1103,28 @@ onUnmounted(() => {
       </v-card>
     </v-dialog>
 
-    <v-dialog v-model="showOrgDialog" max-width="520" persistent @after-enter="focusOrgFirstField">
+    <v-dialog
+      v-model="showOrgDialog"
+      max-width="520"
+      persistent
+      scrollable
+      :z-index="5000"
+      content-class="admin-form-dialog-content"
+      @after-enter="focusOrgFirstField"
+    >
       <v-card>
         <v-card-title>{{ orgForm.id ? "Edit" : "Add" }} Organization</v-card-title>
         <v-card-text>
+          <v-alert
+            v-if="orgDialogError"
+            type="error"
+            density="compact"
+            class="mb-3"
+            closable
+            @click:close="orgDialogError = ''"
+          >
+            {{ orgDialogError }}
+          </v-alert>
           <template v-if="orgForm.id">
             <div class="mb-4">
               <div class="text-caption mb-2">Logo</div>
@@ -1100,10 +1201,28 @@ onUnmounted(() => {
       </v-card>
     </v-dialog>
 
-    <v-dialog v-model="showLocationDialog" max-width="520" persistent @after-enter="focusLocationFirstField">
+    <v-dialog
+      v-model="showLocationDialog"
+      max-width="520"
+      persistent
+      scrollable
+      :z-index="5000"
+      content-class="admin-form-dialog-content"
+      @after-enter="focusLocationFirstField"
+    >
       <v-card>
         <v-card-title>{{ locationForm.id ? "Edit" : "Add" }} Location</v-card-title>
         <v-card-text>
+          <v-alert
+            v-if="locationDialogError"
+            type="error"
+            density="compact"
+            class="mb-3"
+            closable
+            @click:close="locationDialogError = ''"
+          >
+            {{ locationDialogError }}
+          </v-alert>
           <v-select
             ref="locationOrgFieldRef"
             v-model="locationForm.organizationId"
@@ -1140,10 +1259,28 @@ onUnmounted(() => {
       </v-card>
     </v-dialog>
 
-    <v-dialog v-model="showUserDialog" max-width="480" persistent @after-enter="focusUserFirstField">
+    <v-dialog
+      v-model="showUserDialog"
+      max-width="480"
+      persistent
+      scrollable
+      :z-index="5000"
+      content-class="admin-form-dialog-content"
+      @after-enter="focusUserFirstField"
+    >
       <v-card>
         <v-card-title>{{ userForm.id ? "Edit User" : "Add User" }}</v-card-title>
         <v-card-text>
+          <v-alert
+            v-if="userDialogError"
+            type="error"
+            density="compact"
+            class="mb-3"
+            closable
+            @click:close="userDialogError = ''"
+          >
+            {{ userDialogError }}
+          </v-alert>
           <v-form ref="userFormRef" validate-on="submit lazy">
             <div class="text-caption text-medium-emphasis mb-3">* required field</div>
             <v-text-field
@@ -1152,12 +1289,14 @@ onUnmounted(() => {
               label="First Name *"
               :rules="requiredText"
               density="compact"
+              @blur="userForm.fName = toProperNameCase(userForm.fName)"
             />
             <v-text-field
               v-model="userForm.lName"
               label="Last Name *"
               :rules="requiredText"
               density="compact"
+              @blur="userForm.lName = toProperNameCase(userForm.lName)"
             />
             <v-text-field v-model="userForm.email" label="Email" type="email" density="compact" />
             <v-text-field
@@ -1207,10 +1346,28 @@ onUnmounted(() => {
       </v-card>
     </v-dialog>
 
-    <v-dialog v-model="showLookupDialog" max-width="420" persistent @after-enter="focusLookupValueField">
+    <v-dialog
+      v-model="showLookupDialog"
+      max-width="420"
+      persistent
+      scrollable
+      :z-index="5000"
+      content-class="admin-form-dialog-content"
+      @after-enter="focusLookupValueField"
+    >
       <v-card>
         <v-card-title>{{ lookupForm.id ? "Edit" : "Add" }} {{ LOOKUP_TYPES.find((t) => t.value === lookupForm.type)?.label || lookupForm.type }}</v-card-title>
         <v-card-text>
+          <v-alert
+            v-if="lookupDialogError"
+            type="error"
+            density="compact"
+            class="mb-3"
+            closable
+            @click:close="lookupDialogError = ''"
+          >
+            {{ lookupDialogError }}
+          </v-alert>
           <v-select
             v-model="lookupForm.organizationId"
             :items="organizationsForTenantSelect"
@@ -1236,3 +1393,11 @@ onUnmounted(() => {
     </v-dialog>
   </v-container>
 </template>
+
+<style>
+/* Per-field validation (v-messages) above the modal scrim inside Admin form dialogs. */
+.admin-form-dialog-content .v-input__details {
+  position: relative;
+  z-index: 2;
+}
+</style>

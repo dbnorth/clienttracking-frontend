@@ -6,6 +6,7 @@ import ReferringOrganizationServices from "../services/referringOrganizationServ
 import LocationServices from "../services/locationServices";
 import { useRouter } from "vue-router";
 import { phoneRule } from "../utils/phoneUtils.js";
+import { toProperNameCase } from "../utils/nameCaseUtils.js";
 import ClientForm from "../components/ClientForm.vue";
 import {
   lookupQueryOpts,
@@ -95,7 +96,16 @@ const saveClient = async () => {
       return;
     }
   }
-  ClientServices.update(props.id, client.value)
+  const payload = {
+    ...client.value,
+    firstName: toProperNameCase(client.value.firstName),
+    middleName: toProperNameCase(client.value.middleName),
+    lastName: toProperNameCase(client.value.lastName),
+    nickname: toProperNameCase(client.value.nickname),
+    parentFirstName: toProperNameCase(client.value.parentFirstName),
+    parentLastName: toProperNameCase(client.value.parentLastName),
+  };
+  ClientServices.update(props.id, payload)
     .then(() => router.push({ name: "clients" }))
     .catch((e) => (message.value = e.response?.data?.message || "Error saving"));
 };

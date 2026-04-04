@@ -1,6 +1,7 @@
 <script setup>
 import { watch, computed, ref } from "vue";
 import PhoneInput from "./PhoneInput.vue";
+import { toProperNameCase } from "../utils/nameCaseUtils.js";
 
 const formRef = ref(null);
 const firstNameFieldRef = ref(null);
@@ -184,6 +185,14 @@ const focusFirstField = () => {
   }
 };
 
+const commitClientName = (key) => {
+  if (props.readOnly) return;
+  const raw = props.modelValue[key];
+  const formatted = toProperNameCase(raw);
+  if ((raw ?? "") === formatted) return;
+  emit("update:modelValue", { ...props.modelValue, [key]: formatted });
+};
+
 defineExpose({ validate, focusFirstField });
 </script>
 
@@ -199,25 +208,34 @@ defineExpose({ validate, focusFirstField });
           <v-col cols="12" md="3">
             <v-text-field
               ref="firstNameFieldRef"
-              v-model="modelValue.firstName"
+              :model-value="modelValue.firstName"
               label="First Name *"
               :readonly="readOnly"
               :rules="readOnly ? [] : requiredText"
               density="compact"
               @update:model-value="(v) => $emit('update:modelValue', { ...modelValue, firstName: v })"
+              @blur="() => commitClientName('firstName')"
             />
           </v-col>
           <v-col cols="12" md="2">
-            <v-text-field v-model="modelValue.middleName" label="Middle" :readonly="readOnly" density="compact" />
+            <v-text-field
+              :model-value="modelValue.middleName"
+              label="Middle"
+              :readonly="readOnly"
+              density="compact"
+              @update:model-value="(v) => $emit('update:modelValue', { ...modelValue, middleName: v })"
+              @blur="() => commitClientName('middleName')"
+            />
           </v-col>
           <v-col cols="12" md="3">
             <v-text-field
-              v-model="modelValue.lastName"
+              :model-value="modelValue.lastName"
               label="Last Name *"
               :readonly="readOnly"
               :rules="readOnly ? [] : requiredText"
               density="compact"
               @update:model-value="(v) => $emit('update:modelValue', { ...modelValue, lastName: v })"
+              @blur="() => commitClientName('lastName')"
             />
           </v-col>
           <v-col cols="12" md="2">
@@ -244,6 +262,7 @@ defineExpose({ validate, focusFirstField });
               :readonly="readOnly"
               density="compact"
               @update:model-value="(v) => $emit('update:modelValue', { ...modelValue, nickname: v })"
+              @blur="() => commitClientName('nickname')"
             />
           </v-col>
         </v-row>
@@ -367,10 +386,24 @@ defineExpose({ validate, focusFirstField });
       <div class="pa-4">
         <v-row>
           <v-col cols="12" md="3">
-            <v-text-field v-model="modelValue.parentFirstName" label="Parent First Name" :readonly="readOnly" density="compact" />
+            <v-text-field
+              :model-value="modelValue.parentFirstName"
+              label="Parent First Name"
+              :readonly="readOnly"
+              density="compact"
+              @update:model-value="(v) => $emit('update:modelValue', { ...modelValue, parentFirstName: v })"
+              @blur="() => commitClientName('parentFirstName')"
+            />
           </v-col>
           <v-col cols="12" md="3">
-            <v-text-field v-model="modelValue.parentLastName" label="Parent Last Name" :readonly="readOnly" density="compact" />
+            <v-text-field
+              :model-value="modelValue.parentLastName"
+              label="Parent Last Name"
+              :readonly="readOnly"
+              density="compact"
+              @update:model-value="(v) => $emit('update:modelValue', { ...modelValue, parentLastName: v })"
+              @blur="() => commitClientName('parentLastName')"
+            />
           </v-col>
           <v-col cols="12" md="3">
             <PhoneInput
