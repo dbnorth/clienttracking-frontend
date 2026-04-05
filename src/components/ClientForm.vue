@@ -445,21 +445,17 @@ defineExpose({ validate, focusFirstField });
       <div class="text-subtitle-1 pa-3 bg-grey-lighten-3 font-weight-medium">Demographic</div>
       <div class="pa-4">
         <v-row>
-          <v-col cols="12" md="3">
+          <v-col cols="12" md="4">
             <v-select v-model="modelValue.genderId" :items="genders" item-title="value" item-value="id"
               label="Gender" clearable :readonly="readOnly" density="compact" />
           </v-col>
-          <v-col cols="12" md="3">
+          <v-col cols="12" md="4">
             <v-select v-model="modelValue.raceId" :items="races" item-title="value" item-value="id"
               label="Race" clearable :readonly="readOnly" density="compact" />
           </v-col>
-          <v-col cols="12" md="3">
+          <v-col cols="12" md="4">
             <v-select v-model="modelValue.ethnicityId" :items="ethnicities" item-title="value" item-value="id"
               label="Ethnicity" clearable :readonly="readOnly" density="compact" />
-          </v-col>
-          <v-col cols="12" md="3">
-            <v-select v-model="modelValue.initialSituationId" :items="initialSituations" item-title="value" item-value="id"
-              label="Initial Situation" clearable :readonly="readOnly" density="compact" />
           </v-col>
         </v-row>
       </div>
@@ -508,6 +504,12 @@ defineExpose({ validate, focusFirstField });
     <v-sheet class="rounded-lg mb-4 pa-0 overflow-hidden" border>
       <div class="text-subtitle-1 pa-3 bg-grey-lighten-3 font-weight-medium">Situation</div>
       <div class="pa-4">
+        <v-row>
+          <v-col cols="12" md="6">
+            <v-select v-model="modelValue.initialSituationId" :items="initialSituations" item-title="value" item-value="id"
+              label="Initial Situation" clearable :readonly="readOnly" density="compact" />
+          </v-col>
+        </v-row>
         <v-row>
           <v-col cols="12" md="6">
             <v-select
