@@ -56,8 +56,7 @@ const client = ref({
   intakeLocationId: user?.currentLocationId ?? null,
   referralCaseWorker: "",
   referralPhone: "",
-  drugOfChoiceId: null,
-  drugMethod: null,
+  drugsOfChoice: [],
   housingTypeId: null,
   housingRedGreen: null,
   housingLocationId: null,
@@ -79,7 +78,7 @@ const clearLookupSelections = () => {
   client.value.genderId = null;
   client.value.initialSituationId = null;
   client.value.referralTypeId = null;
-  client.value.drugOfChoiceId = null;
+  client.value.drugsOfChoice = [];
   client.value.housingTypeId = null;
   client.value.housingLocationId = null;
   client.value.daytimeLocationId = null;
