@@ -77,6 +77,14 @@ const retrieveClient = async () => {
       try { client.value.benefits = JSON.parse(client.value.benefits) || []; } catch (_) { client.value.benefits = []; }
     }
     if (!Array.isArray(client.value.benefits)) client.value.benefits = [];
+    if (typeof client.value.drugsOfChoice === "string") {
+      try {
+        client.value.drugsOfChoice = JSON.parse(client.value.drugsOfChoice) || [];
+      } catch (_) {
+        client.value.drugsOfChoice = [];
+      }
+    }
+    if (!Array.isArray(client.value.drugsOfChoice)) client.value.drugsOfChoice = [];
     if (client.value.organizationId && client.value.organization) {
       client.value.referralCaseWorker = client.value.organization.caseWorkerName || "";
       client.value.referralPhone = client.value.organization.phone || "";

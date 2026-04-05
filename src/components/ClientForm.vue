@@ -509,12 +509,19 @@ defineExpose({ validate, focusFirstField });
       <div class="text-subtitle-1 pa-3 bg-grey-lighten-3 font-weight-medium">Situation</div>
       <div class="pa-4">
         <v-row>
-          <v-col cols="12" md="4">
-            <v-select v-model="modelValue.drugOfChoiceId" :items="drugOfChoice" item-title="value" item-value="id"
-              label="Drug of Choice" clearable :readonly="readOnly" density="compact" />
-          </v-col>
-          <v-col cols="12" md="4">
-            <v-select v-model="modelValue.drugMethod" :items="['oral','inject','smoke']" label="Drug Method" clearable :readonly="readOnly" density="compact" />
+          <v-col cols="12" md="6">
+            <v-select
+              v-model="modelValue.drugsOfChoice"
+              :items="drugOfChoice"
+              item-title="value"
+              item-value="id"
+              label="Drugs of Choice"
+              multiple
+              chips
+              clearable
+              :readonly="readOnly"
+              density="compact"
+            />
           </v-col>
           <v-col cols="12" md="6">
             <v-select v-model="modelValue.benefits" :items="benefits" item-title="value" item-value="id"

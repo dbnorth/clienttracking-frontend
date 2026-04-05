@@ -107,6 +107,11 @@ const benefitsDisplay = (client) => {
   return ids.map((id) => benefits.value.find((b) => b.id === id)?.value).filter(Boolean).join(", ") || "–";
 };
 
+const drugsOfChoiceDisplay = (cl) => {
+  const ids = Array.isArray(cl.drugsOfChoice) ? cl.drugsOfChoice : [];
+  return ids.map((id) => drugOfChoice.value.find((opt) => opt.id === id)?.value).filter(Boolean).join(", ") || "–";
+};
+
 const retrieveData = async () => {
   try {
     const [cRes, sRes] = await Promise.all([
@@ -119,6 +124,14 @@ const retrieveData = async () => {
       try { client.value.benefits = JSON.parse(client.value.benefits) || []; } catch (_) { client.value.benefits = []; }
     }
     if (!Array.isArray(client.value.benefits)) client.value.benefits = [];
+    if (typeof client.value.drugsOfChoice === "string") {
+      try {
+        client.value.drugsOfChoice = JSON.parse(client.value.drugsOfChoice) || [];
+      } catch (_) {
+        client.value.drugsOfChoice = [];
+      }
+    }
+    if (!Array.isArray(client.value.drugsOfChoice)) client.value.drugsOfChoice = [];
   } catch (e) {
     message.value = e.response?.data?.message || "Error loading";
   }
@@ -231,8 +244,7 @@ onMounted(async () => {
         <v-sheet class="rounded-lg mb-4 pa-4" border>
           <div class="text-subtitle-1 mb-3 font-weight-medium">Situation</div>
           <div class="text-body-2">
-            <div class="mb-2"><strong>Drug of Choice:</strong> {{ lookupValue(drugOfChoice, client.drugOfChoiceId) }}</div>
-            <div class="mb-2"><strong>Drug Method:</strong> {{ client.drugMethod || '–' }}</div>
+            <div class="mb-2"><strong>Drugs of Choice:</strong> {{ drugsOfChoiceDisplay(client) }}</div>
             <div class="mb-2"><strong>Benefits:</strong> {{ benefitsDisplay(client) }}</div>
           </div>
         </v-sheet>
