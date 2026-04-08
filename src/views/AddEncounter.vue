@@ -7,6 +7,8 @@ import LookupServices from "../services/lookupServices";
 import Utils from "../config/utils.js";
 import { formatPhoneForDisplay } from "../utils/phoneUtils.js";
 import { getClientFullDisplayName } from "../utils/clientNameUtils.js";
+import { lookupQueryOpts, organizationIdFromClientEmbedded } from "../utils/lookupOrgUtils.js";
+import PhoneInput from "../components/PhoneInput.vue";
 
 const router = useRouter();
 const route = useRoute();
@@ -19,7 +21,9 @@ const leaveEncounter = () => {
   }
   router.back();
 };
-const message = ref("Select a client and mark services requested or provided.");
+const message = ref(
+  "Select a client, then update their information if needed and select services requested, provided, or cancelled."
+);
 const selectedClient = ref(null);
 const clients = ref([]);
 const searchInput = ref("");
@@ -32,6 +36,22 @@ const nowDisplay = ref("");
 const encounterNotes = ref("");
 const encounterTypeId = ref(null);
 const encounterTypes = ref([]);
+const initialSituations = ref([]);
+const housingTypes = ref([]);
+const housingLocations = ref([]);
+const daytimeLocations = ref([]);
+const encounterCurrentSituationId = ref(null);
+const encounterCurrentlyTakingDrugs = ref(false);
+const encounterHousingTypeId = ref(null);
+const encounterHousingRedGreen = ref(null);
+const encounterHousingLocationId = ref(null);
+const encounterDaytimeLocationId = ref(null);
+const encounterPhone = ref("");
+const encounterHousingStreet = ref("");
+const encounterHousingApt = ref("");
+const encounterHousingCity = ref("");
+const encounterHousingState = ref("");
+const encounterHousingZip = ref("");
 const encounterFormRef = ref(null);
 const clientSearchFieldRef = ref(null);
 const requiredEncounterType = [(v) => (v != null && v !== "") || "Encounter type is required"];
@@ -182,6 +202,8 @@ const uploadPhotoBlob = async (blobOrFile) => {
     if (photoUrl) {
       selectedClient.value = { ...selectedClient.value, photoUrl };
     }
+    await nextTick();
+    captureSaveBaseline();
     closePhotoDialog();
   } catch (e) {
     photoError.value = e.response?.data?.message || "Upload failed.";
@@ -190,9 +212,15 @@ const uploadPhotoBlob = async (blobOrFile) => {
   }
 };
 
-const clientsWithLabel = computed(() =>
-  clients.value.map((c) => ({ ...c, displayLabel: getClientLabel(c) }))
-);
+/** Keep the selected row in `items` after the search list clears; otherwise Vuetify clears v-model and snapshot defaults are lost. */
+const clientsWithLabel = computed(() => {
+  const base = clients.value.map((c) => ({ ...c, displayLabel: getClientLabel(c) }));
+  const sel = selectedClient.value;
+  if (!sel?.id) return base;
+  const sid = Number(sel.id);
+  if (base.some((x) => Number(x.id) === sid)) return base;
+  return [{ ...sel, displayLabel: getClientLabel(sel) }, ...base];
+});
 
 const onSearchInput = (v) => {
   searchInput.value = v;
@@ -219,11 +247,6 @@ const searchClients = (q) => {
       loading.value = false;
     }
   }, 300);
-};
-
-const selectClient = (c) => {
-  selectedClient.value = c;
-  clients.value = [];
 };
 
 const hasPendingRequest = (serviceProvidedId) => {
@@ -296,18 +319,172 @@ const getProvidedCount = (serviceProvidedId) => {
   ).length;
 };
 
+function toLookupId(v) {
+  if (v == null || v === "") return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+function normalizeStateAbbrev(v) {
+  return String(v ?? "")
+    .replace(/[^a-zA-Z]/g, "")
+    .slice(0, 2)
+    .toUpperCase();
+}
+
+const showEncounterHousingAddress = computed(() => {
+  const id = encounterHousingLocationId.value;
+  if (id == null || id === "") return false;
+  const selected = housingLocations.value.find((l) => Number(l.id) === Number(id));
+  return selected?.value === "Address";
+});
+
+watch(encounterHousingLocationId, (id) => {
+  const selected = housingLocations.value.find((l) => Number(l.id) === Number(id));
+  if (selected?.value !== "Address") {
+    encounterHousingStreet.value = "";
+    encounterHousingApt.value = "";
+    encounterHousingCity.value = "";
+    encounterHousingState.value = "";
+    encounterHousingZip.value = "";
+  }
+});
+
+watch(showEncounterHousingAddress, (show) => {
+  if (show && !String(encounterHousingState.value ?? "").trim()) {
+    encounterHousingState.value = "OK";
+  }
+});
+
+function applyClientSnapshotToEncounterFields(c) {
+  if (!c) {
+    encounterCurrentSituationId.value = null;
+    encounterCurrentlyTakingDrugs.value = false;
+    encounterHousingTypeId.value = null;
+    encounterHousingRedGreen.value = null;
+    encounterHousingLocationId.value = null;
+    encounterDaytimeLocationId.value = null;
+    encounterHousingStreet.value = "";
+    encounterHousingApt.value = "";
+    encounterHousingCity.value = "";
+    encounterHousingState.value = "";
+    encounterHousingZip.value = "";
+    encounterPhone.value = "";
+    return;
+  }
+  encounterCurrentSituationId.value = toLookupId(c.currentSituationId ?? c.currentSituation?.id);
+  encounterCurrentlyTakingDrugs.value = !!c.currentlyTakingDrugs;
+  encounterHousingTypeId.value = toLookupId(c.housingTypeId ?? c.housingType?.id);
+  encounterHousingRedGreen.value = c.housingRedGreen ?? null;
+  encounterHousingLocationId.value = toLookupId(c.housingLocationId ?? c.housingLocation?.id);
+  encounterDaytimeLocationId.value = toLookupId(c.daytimeLocationId ?? c.daytimeLocation?.id);
+  encounterHousingStreet.value = c.housingStreet ?? "";
+  encounterHousingApt.value = c.housingApt ?? "";
+  encounterHousingCity.value = c.housingCity ?? "";
+  encounterHousingState.value = c.housingState ? normalizeStateAbbrev(c.housingState) : "";
+  encounterHousingZip.value = c.housingZip ?? "";
+  encounterPhone.value = c.phone ?? "";
+}
+
+/** Loads lookup lists using the selected client’s org when set, otherwise the signed-in user’s org (same as Edit Encounter). */
+async function loadEncounterLookupsForClient(client) {
+  const opts = lookupQueryOpts(organizationIdFromClientEmbedded(client ?? null));
+  const [init, ht, hl, dl] = await Promise.all([
+    LookupServices.getByType("initial_situation", opts),
+    LookupServices.getByType("housing_type", opts),
+    LookupServices.getByType("housing_location", opts),
+    LookupServices.getByType("daytime_location", opts),
+  ]);
+  initialSituations.value = init.data || [];
+  housingTypes.value = ht.data || [];
+  housingLocations.value = hl.data || [];
+  daytimeLocations.value = dl.data || [];
+}
+
+function selectedClientNumericId() {
+  const raw = selectedClient.value?.id ?? selectedClient.value?.clientId;
+  if (raw == null || raw === "") return null;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : null;
+}
+
+const saveBaseline = ref(null);
+
+function eqSnapshotId(a, b) {
+  const na = a == null || a === "" ? null : Number(a);
+  const nb = b == null || b === "" ? null : Number(b);
+  if (na === null && nb === null) return true;
+  if (na === null || nb === null) return false;
+  return na === nb;
+}
+
+function captureSaveBaseline() {
+  const c = selectedClient.value;
+  saveBaseline.value = {
+    clientPhotoUrl: c?.photoUrl ?? null,
+    encounterTypeId: encounterTypeId.value ?? null,
+    notes: String(encounterNotes.value ?? "").trim(),
+    phone: String(encounterPhone.value ?? "").trim(),
+    currentSituationId: encounterCurrentSituationId.value ?? null,
+    currentlyTakingDrugs: !!encounterCurrentlyTakingDrugs.value,
+    housingTypeId: encounterHousingTypeId.value ?? null,
+    housingRedGreen: encounterHousingRedGreen.value ?? null,
+    housingLocationId: encounterHousingLocationId.value ?? null,
+    daytimeLocationId: encounterDaytimeLocationId.value ?? null,
+    housingStreet: String(encounterHousingStreet.value ?? "").trim(),
+    housingApt: String(encounterHousingApt.value ?? "").trim(),
+    housingCity: String(encounterHousingCity.value ?? "").trim(),
+    housingState: String(encounterHousingState.value ?? "").trim(),
+    housingZip: String(encounterHousingZip.value ?? "").trim(),
+    serviceSelections: serviceSelections.value.map((s) => ({
+      id: s.id,
+      requested: !!s.requested,
+      provided: !!s.provided,
+      cancelled: !!s.cancelled,
+    })),
+  };
+}
+
 watch(
-  () => selectedClient.value?.id ?? selectedClient.value?.clientId,
+  () => selectedClientNumericId(),
   async (clientId) => {
-    if (!clientId) {
+    if (clientId == null) {
+      saveBaseline.value = null;
+      applyClientSnapshotToEncounterFields(null);
+      await loadEncounterLookupsForClient(null);
       clientServiceHistory.value = [];
       return;
     }
     try {
-      const res = await ClientServiceServices.getAll({ clientId });
-      clientServiceHistory.value = res.data || [];
+      const res = await ClientServices.get(clientId);
+      const full = res.data;
+      if (full?.id != null && Number(full.id) === clientId) {
+        selectedClient.value = full;
+        applyClientSnapshotToEncounterFields(full);
+        await loadEncounterLookupsForClient(full);
+      }
     } catch {
-      clientServiceHistory.value = [];
+      const c = selectedClient.value;
+      if (c && Number(c.id ?? c.clientId) === clientId) {
+        applyClientSnapshotToEncounterFields(c);
+        await loadEncounterLookupsForClient(c);
+      }
+    }
+    try {
+      const svcRes = await ClientServiceServices.getAll({ clientId });
+      const cur = selectedClient.value;
+      if (cur && Number(cur.id ?? cur.clientId) === clientId) {
+        clientServiceHistory.value = svcRes.data || [];
+      }
+    } catch {
+      const cur = selectedClient.value;
+      if (cur && Number(cur.id ?? cur.clientId) === clientId) {
+        clientServiceHistory.value = [];
+      }
+    }
+    await nextTick();
+    if (selectedClientNumericId() === clientId) {
+      captureSaveBaseline();
     }
   },
   { immediate: true }
@@ -350,6 +527,49 @@ const hasSelection = computed(() =>
   serviceSelections.value.some((s) => s.requested || s.provided || s.cancelled)
 );
 
+/** Encounter details and services stay inert until a client is chosen (search stays enabled). */
+const encounterFormDisabled = computed(() => selectedClientNumericId() == null);
+
+const isFormDirty = computed(() => {
+  const b = saveBaseline.value;
+  if (!b || selectedClientNumericId() == null) return false;
+  const c = selectedClient.value;
+  if ((c?.photoUrl ?? null) !== (b.clientPhotoUrl ?? null)) return true;
+  if (!eqSnapshotId(encounterTypeId.value, b.encounterTypeId)) return true;
+  if (String(encounterNotes.value ?? "").trim() !== b.notes) return true;
+  if (String(encounterPhone.value ?? "").trim() !== b.phone) return true;
+  if (!eqSnapshotId(encounterCurrentSituationId.value, b.currentSituationId)) return true;
+  if (!!encounterCurrentlyTakingDrugs.value !== b.currentlyTakingDrugs) return true;
+  if (!eqSnapshotId(encounterHousingTypeId.value, b.housingTypeId)) return true;
+  if ((encounterHousingRedGreen.value ?? null) !== (b.housingRedGreen ?? null)) return true;
+  if (!eqSnapshotId(encounterHousingLocationId.value, b.housingLocationId)) return true;
+  if (!eqSnapshotId(encounterDaytimeLocationId.value, b.daytimeLocationId)) return true;
+  if (String(encounterHousingStreet.value ?? "").trim() !== b.housingStreet) return true;
+  if (String(encounterHousingApt.value ?? "").trim() !== b.housingApt) return true;
+  if (String(encounterHousingCity.value ?? "").trim() !== b.housingCity) return true;
+  if (String(encounterHousingState.value ?? "").trim() !== b.housingState) return true;
+  if (String(encounterHousingZip.value ?? "").trim() !== b.housingZip) return true;
+  const curSvc = serviceSelections.value.map((s) => ({
+    id: s.id,
+    requested: !!s.requested,
+    provided: !!s.provided,
+    cancelled: !!s.cancelled,
+  }));
+  if (curSvc.length !== b.serviceSelections.length) return true;
+  for (let i = 0; i < curSvc.length; i++) {
+    const x = curSvc[i];
+    const y = b.serviceSelections[i];
+    if (!y || x.id !== y.id || x.requested !== y.requested || x.provided !== y.provided || x.cancelled !== y.cancelled) {
+      return true;
+    }
+  }
+  return false;
+});
+
+const canSaveEncounter = computed(
+  () => !encounterFormDisabled.value && (hasSelection.value || isFormDirty.value)
+);
+
 const save = async () => {
   const { valid } = (await encounterFormRef.value?.validate()) ?? { valid: true };
   if (!valid) return;
@@ -363,9 +583,27 @@ const save = async () => {
     message.value = "Encounter type is required.";
     return;
   }
-  if (!hasSelection.value) {
-    message.value = "Please mark at least one service as requested, provided, or cancelled.";
+  if (!hasSelection.value && !isFormDirty.value) {
+    message.value = "Update the form or mark at least one service as requested, provided, or cancelled.";
     return;
+  }
+  if (showEncounterHousingAddress.value) {
+    if (!String(encounterHousingStreet.value ?? "").trim()) {
+      message.value = "Street is required when Housing location is Address.";
+      return;
+    }
+    if (!String(encounterHousingCity.value ?? "").trim()) {
+      message.value = "City is required when Housing location is Address.";
+      return;
+    }
+    if (!String(encounterHousingState.value ?? "").trim()) {
+      message.value = "State is required when Housing location is Address.";
+      return;
+    }
+    if (!String(encounterHousingZip.value ?? "").trim()) {
+      message.value = "Zip is required when Housing location is Address.";
+      return;
+    }
   }
   const currentUser = Utils.getStore("user");
   const uid = currentUser?.userId ?? currentUser?.id;
@@ -398,6 +636,26 @@ const save = async () => {
     }
     return item;
   });
+  const trimOrNull = (s) => {
+    const t = String(s ?? "").trim();
+    return t || null;
+  };
+  const addressOpts = showEncounterHousingAddress.value
+    ? {
+        housingStreet: trimOrNull(encounterHousingStreet.value),
+        housingApt: trimOrNull(encounterHousingApt.value),
+        housingCity: trimOrNull(encounterHousingCity.value),
+        housingState: trimOrNull(normalizeStateAbbrev(encounterHousingState.value)),
+        housingZip: trimOrNull(encounterHousingZip.value),
+      }
+    : {
+        housingStreet: null,
+        housingApt: null,
+        housingCity: null,
+        housingState: null,
+        housingZip: null,
+      };
+
   saving.value = true;
   message.value = "Saving...";
   try {
@@ -405,6 +663,14 @@ const save = async () => {
       userId: uid,
       notes: encounterNotes.value || null,
       encounterTypeId: encounterTypeId.value,
+      currentSituationId: encounterCurrentSituationId.value,
+      currentlyTakingDrugs: encounterCurrentlyTakingDrugs.value,
+      housingTypeId: encounterHousingTypeId.value,
+      housingRedGreen: encounterHousingRedGreen.value,
+      housingLocationId: encounterHousingLocationId.value,
+      daytimeLocationId: encounterDaytimeLocationId.value,
+      phone: trimOrNull(encounterPhone.value),
+      ...addressOpts,
     });
     leaveEncounter();
   } catch (e) {
@@ -469,28 +735,43 @@ onUnmounted(() => {
       <v-toolbar>
         <v-toolbar-title>Add Encounter</v-toolbar-title>
       </v-toolbar>
-      <div class="text-h5 text-center mt-2 mb-2">{{ nowDisplay }}</div>
-      <div v-if="selectedClient" class="text-center mb-4">
-        <div class="text-h4 font-weight-medium mb-2">{{ getClientDisplayName(selectedClient) }}</div>
-        <div class="d-flex justify-center">
+
+      <v-sheet v-if="selectedClient" class="rounded-lg mb-4 pa-4" border>
+        <div class="d-flex flex-column align-center ga-4 justify-center text-center">
           <div
-            v-if="getClientPhotoUrl(selectedClient)"
-            class="overflow-hidden"
+            class="flex-shrink-0 overflow-hidden rounded mx-auto"
             style="width: 120px; height: 120px; background: rgb(var(--v-theme-surface-variant));"
           >
-            <img :src="getClientPhotoUrl(selectedClient)" alt="Client photo" style="width: 100%; height: 100%; object-fit: cover" />
-          </div>
-          <div v-else class="d-flex flex-column align-center">
-            <div class="d-flex align-center justify-center mb-2" style="width: 120px; height: 120px; background: rgb(var(--v-theme-surface-variant));">
-              <v-icon size="48">mdi-account</v-icon>
+            <img
+              v-if="getClientPhotoUrl(selectedClient)"
+              :src="getClientPhotoUrl(selectedClient)"
+              alt="Client photo"
+              style="width: 100%; height: 100%; object-fit: cover"
+            />
+            <div v-else class="d-flex align-center justify-center" style="width: 100%; height: 100%; min-height: 120px">
+              <v-icon size="56" color="medium-emphasis">mdi-account</v-icon>
             </div>
-            <v-btn color="primary" size="small" variant="tonal" :disabled="photoUploading" :loading="photoUploading" @click="openPhotoDialog">
-              <v-icon start size="18">mdi-camera</v-icon>
-              Add Photo
-            </v-btn>
+          </div>
+          <div class="text-center" style="min-width: 0">
+            <div class="text-h5 font-weight-medium">{{ getClientDisplayName(selectedClient) }}</div>
+            <div class="d-flex flex-wrap ga-2 justify-center mt-3">
+              <v-btn
+                color="primary"
+                size="small"
+                variant="tonal"
+                :disabled="photoUploading"
+                :loading="photoUploading"
+                @click="openPhotoDialog"
+              >
+                <v-icon start size="18">{{ getClientPhotoUrl(selectedClient) ? "mdi-camera" : "mdi-camera-plus" }}</v-icon>
+                {{ getClientPhotoUrl(selectedClient) ? "Update photo" : "Add photo" }}
+              </v-btn>
+            </div>
           </div>
         </div>
-      </div>
+      </v-sheet>
+
+      <div class="text-h5 text-center mt-2 mb-2">{{ nowDisplay }}</div>
       <h4>{{ message }}</h4>
       <br />
 
@@ -503,6 +784,7 @@ onUnmounted(() => {
             :items="clientsWithLabel"
             :loading="loading"
             item-title="displayLabel"
+            item-value="id"
             return-object
             label="Search by name or phone number"
             placeholder="Type to search..."
@@ -523,14 +805,133 @@ onUnmounted(() => {
             item-value="id"
             label="Encounter type *"
             :rules="requiredEncounterType"
+            :disabled="encounterFormDisabled"
             density="compact"
             class="mt-3"
             @update:model-value="onEncounterTypeChange"
           />
+          <p
+            v-if="!encounterFormDisabled"
+            class="text-body-2 text-medium-emphasis mt-2 mb-0"
+          >
+            Update these fields to current values for the client.
+          </p>
+          <v-row class="mt-2" dense>
+            <v-col cols="12" md="6">
+              <v-select
+                v-model="encounterCurrentSituationId"
+                :items="initialSituations"
+                item-title="value"
+                item-value="id"
+                label="Current Status"
+                clearable
+                :disabled="encounterFormDisabled"
+                density="compact"
+                hide-details
+              />
+            </v-col>
+            <v-col cols="12" md="6" class="d-flex align-center">
+              <v-checkbox
+                v-model="encounterCurrentlyTakingDrugs"
+                label="Currently taking drugs"
+                hide-details
+                density="compact"
+                color="primary"
+                :disabled="encounterFormDisabled"
+              />
+            </v-col>
+          </v-row>
+          <v-row dense>
+            <v-col cols="12" md="4">
+              <v-select
+                v-model="encounterHousingTypeId"
+                :items="housingTypes"
+                item-title="value"
+                item-value="id"
+                label="Housing Type"
+                clearable
+                :disabled="encounterFormDisabled"
+                density="compact"
+                hide-details
+              />
+            </v-col>
+            <v-col cols="12" md="2">
+              <v-select
+                v-model="encounterHousingRedGreen"
+                :items="['Red', 'Green']"
+                label="Red/Green"
+                clearable
+                :disabled="encounterFormDisabled"
+                density="compact"
+                hide-details
+              />
+            </v-col>
+            <v-col cols="12" md="4">
+              <v-select
+                v-model="encounterHousingLocationId"
+                :items="housingLocations"
+                item-title="value"
+                item-value="id"
+                label="Housing Location"
+                clearable
+                :disabled="encounterFormDisabled"
+                density="compact"
+                hide-details
+              />
+            </v-col>
+          </v-row>
+          <v-row v-if="showEncounterHousingAddress" dense>
+            <v-col cols="12" md="4">
+              <v-text-field v-model="encounterHousingStreet" label="Street *" :disabled="encounterFormDisabled" density="compact" hide-details />
+            </v-col>
+            <v-col cols="12" md="2">
+              <v-text-field v-model="encounterHousingApt" label="Apt #" placeholder="Optional" :disabled="encounterFormDisabled" density="compact" hide-details />
+            </v-col>
+            <v-col cols="12" md="2">
+              <v-text-field v-model="encounterHousingCity" label="City *" :disabled="encounterFormDisabled" density="compact" hide-details />
+            </v-col>
+            <v-col cols="12" md="2">
+              <v-text-field
+                :model-value="normalizeStateAbbrev(encounterHousingState)"
+                label="State *"
+                maxlength="2"
+                placeholder="OK"
+                :disabled="encounterFormDisabled"
+                density="compact"
+                hide-details
+                autocapitalize="characters"
+                @update:model-value="encounterHousingState = normalizeStateAbbrev($event)"
+              />
+            </v-col>
+            <v-col cols="12" md="2">
+              <v-text-field v-model="encounterHousingZip" label="Zip *" :disabled="encounterFormDisabled" density="compact" hide-details />
+            </v-col>
+          </v-row>
+          <v-row dense>
+            <v-col cols="12" md="6">
+              <v-select
+                v-model="encounterDaytimeLocationId"
+                :items="daytimeLocations"
+                item-title="value"
+                item-value="id"
+                label="Daytime Location"
+                clearable
+                :disabled="encounterFormDisabled"
+                density="compact"
+                hide-details
+              />
+            </v-col>
+          </v-row>
+          <v-row class="mt-3" dense>
+            <v-col cols="12" md="6">
+              <PhoneInput v-model="encounterPhone" label="Phone" :disabled="encounterFormDisabled" hide-details />
+            </v-col>
+          </v-row>
           <v-textarea
             v-model="encounterNotes"
             label="Notes"
             placeholder="Optional notes for this encounter..."
+            :disabled="encounterFormDisabled"
             density="compact"
             rows="3"
             class="mt-3"
@@ -562,7 +963,7 @@ onUnmounted(() => {
               <div class="encounter-services-check-cell encounter-services-cell" :class="encounterServiceRowClass(idx)">
                 <v-checkbox
                   :model-value="svc.requested"
-                  :disabled="showsLastRequested(svc.id)"
+                  :disabled="encounterFormDisabled || showsLastRequested(svc.id)"
                   hide-details
                   density="compact"
                   color="primary"
@@ -573,7 +974,7 @@ onUnmounted(() => {
               <div class="encounter-services-check-cell encounter-services-cell" :class="encounterServiceRowClass(idx)">
                 <v-checkbox
                   :model-value="svc.provided"
-                  :disabled="!!svc.cancelled"
+                  :disabled="encounterFormDisabled || !!svc.cancelled"
                   hide-details
                   density="compact"
                   color="success"
@@ -585,7 +986,7 @@ onUnmounted(() => {
                 <v-checkbox
                   v-if="hasPendingRequest(svc.id)"
                   :model-value="svc.cancelled"
-                  :disabled="!!svc.provided"
+                  :disabled="encounterFormDisabled || !!svc.provided"
                   hide-details
                   density="compact"
                   color="error"
@@ -607,7 +1008,7 @@ onUnmounted(() => {
         <v-btn variant="text" @click="cancel">Cancel</v-btn>
         <v-btn
           color="primary"
-          :disabled="!selectedClient || !hasSelection || saving || encounterTypeId == null || encounterTypeId === ''"
+          :disabled="!canSaveEncounter || saving || encounterTypeId == null || encounterTypeId === ''"
           :loading="saving"
           @click="save"
         >

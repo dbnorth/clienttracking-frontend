@@ -45,6 +45,7 @@ const client = ref({
   ethnicityId: null,
   genderId: null,
   initialSituationId: null,
+  currentSituationId: null,
   parentFirstName: "",
   parentLastName: "",
   parentPhone: "",
@@ -68,6 +69,7 @@ const client = ref({
   housingState: "OK",
   housingZip: "",
   benefits: [],
+  currentlyTakingDrugs: false,
   status: "Active",
   userId: user?.userId,
 });
@@ -77,12 +79,14 @@ const clearLookupSelections = () => {
   client.value.ethnicityId = null;
   client.value.genderId = null;
   client.value.initialSituationId = null;
+  client.value.currentSituationId = null;
   client.value.referralTypeId = null;
   client.value.drugsOfChoice = [];
   client.value.housingTypeId = null;
   client.value.housingLocationId = null;
   client.value.daytimeLocationId = null;
   client.value.benefits = [];
+  client.value.currentlyTakingDrugs = false;
 };
 
 const reloadTypeLookups = async () => {
@@ -140,6 +144,22 @@ const loadLookups = async () => {
     message.value = "Error loading lookup data";
   }
 };
+
+watch(
+  () => client.value.initialSituationId,
+  (newVal, oldVal) => {
+    const cur = client.value.currentSituationId;
+    if (newVal == null || newVal === "") {
+      if (oldVal === undefined || cur === oldVal) {
+        client.value.currentSituationId = null;
+      }
+      return;
+    }
+    if (cur == null || cur === oldVal) {
+      client.value.currentSituationId = newVal;
+    }
+  }
+);
 
 watch(
   () => client.value.intakeLocationId,
@@ -239,9 +259,23 @@ onMounted(async () => {
       <br />
       <h4>{{ message }}</h4>
       <br />
-      <ClientForm ref="clientFormRef" v-model="client" :referral-types="referralTypes" :organizations="organizations"
-        :intake-locations="intakeLocations" :drug-of-choice="drugOfChoice" :housing-types="housingTypes"
-        :housing-locations="housingLocations" :daytime-locations="daytimeLocations" :races="races" :ethnicities="ethnicities" :genders="genders" :initial-situations="initialSituations" :benefits="benefits" />
+      <ClientForm
+        ref="clientFormRef"
+        v-model="client"
+        is-add-mode
+        :referral-types="referralTypes"
+        :organizations="organizations"
+        :intake-locations="intakeLocations"
+        :drug-of-choice="drugOfChoice"
+        :housing-types="housingTypes"
+        :housing-locations="housingLocations"
+        :daytime-locations="daytimeLocations"
+        :races="races"
+        :ethnicities="ethnicities"
+        :genders="genders"
+        :initial-situations="initialSituations"
+        :benefits="benefits"
+      />
       <div class="d-flex align-center flex-wrap ga-2 mt-4">
         <v-spacer />
         <v-btn variant="text" :disabled="saving" @click="cancel">Cancel</v-btn>

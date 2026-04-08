@@ -5,22 +5,67 @@ import Utils from "../config/utils.js";
 import EncounterServices from "../services/encounterServices";
 import ClientServices from "../services/clientServices";
 import { getClientFullDisplayName } from "../utils/clientNameUtils.js";
+import { formatPhoneForDisplay } from "../utils/phoneUtils.js";
 
 const router = useRouter();
 const encounters = ref([]);
-const clients = ref([]);
 const message = ref("Results update when you change filters.");
 const filterDate = ref("");
-const filterClientId = ref(null);
+/** Selected client for filter (same search pattern as Add Encounter). */
+const filterClient = ref(null);
+const filterClientSearchResults = ref([]);
+const filterClientLoading = ref(false);
+const filterClientSearchInput = ref("");
+const filterClientSearchTimeout = ref(null);
 
 const getClientName = (c) => {
   if (!c) return "–";
   return getClientFullDisplayName(c) || "–";
 };
 
-const clientsForSelect = computed(() =>
-  clients.value.map((c) => ({ ...c, displayName: getClientName(c) }))
-);
+const getClientLabel = (c) => {
+  if (!c) return "";
+  const name = getClientFullDisplayName(c);
+  const phone = c.phone ? ` • ${formatPhoneForDisplay(c.phone)}` : "";
+  return `${name}${phone}`;
+};
+
+/** Keep selection visible when the search list is cleared. */
+const filterClientsWithLabel = computed(() => {
+  const base = filterClientSearchResults.value.map((c) => ({ ...c, displayLabel: getClientLabel(c) }));
+  const sel = filterClient.value;
+  if (!sel?.id) return base;
+  const sid = Number(sel.id);
+  if (base.some((x) => Number(x.id) === sid)) return base;
+  return [{ ...sel, displayLabel: getClientLabel(sel) }, ...base];
+});
+
+const searchFilterClients = (q) => {
+  if (filterClientSearchTimeout.value) clearTimeout(filterClientSearchTimeout.value);
+  filterClientSearchTimeout.value = setTimeout(async () => {
+    const query = (typeof q === "string" ? q : filterClientSearchInput.value)?.trim();
+    if (!query) {
+      filterClientSearchResults.value = [];
+      return;
+    }
+    filterClientLoading.value = true;
+    try {
+      const u = Utils.getStore("user");
+      const params = { ...Utils.getClientListQueryParams(u), name: query, phone: query };
+      const res = await ClientServices.getAll(params);
+      filterClientSearchResults.value = res.data || [];
+    } catch {
+      filterClientSearchResults.value = [];
+    } finally {
+      filterClientLoading.value = false;
+    }
+  }, 300);
+};
+
+const onFilterClientSearchInput = (v) => {
+  filterClientSearchInput.value = v;
+  searchFilterClients(v);
+};
 
 const getTimeDisplay = (row) => {
   const t = row?.time;
@@ -32,7 +77,8 @@ const getTimeDisplay = (row) => {
 const retrieveEncounters = () => {
   const params = { ...Utils.getClientListQueryParams(Utils.getStore("user")) };
   if (filterDate.value) params.date = filterDate.value;
-  if (filterClientId.value) params.clientId = filterClientId.value;
+  const cid = filterClient.value?.id;
+  if (cid != null && cid !== "") params.clientId = Number(cid);
   EncounterServices.getAll(params)
     .then((res) => (encounters.value = res.data || []))
     .catch((e) => (message.value = e.response?.data?.message || "Error loading encounters"));
@@ -50,34 +96,24 @@ const editEncounter = (row) => {
 
 const clearFilters = () => {
   filterDate.value = "";
-  filterClientId.value = null;
+  filterClient.value = null;
+  filterClientSearchResults.value = [];
   retrieveEncounters();
 };
 
-watch(filterClientId, () => retrieveEncounters());
+watch(() => filterClient.value?.id, () => retrieveEncounters());
 watch(filterDate, () => retrieveEncounters());
 
-const loadClientsForEncounters = async () => {
-  try {
-    const params = { ...Utils.getClientListQueryParams(Utils.getStore("user")) };
-    const r = await ClientServices.getAll(params);
-    clients.value = r.data || [];
-  } catch {
-    clients.value = [];
-  }
-};
-
 const onUserUpdated = () => {
-  loadClientsForEncounters();
   retrieveEncounters();
 };
 
-onMounted(async () => {
-  await loadClientsForEncounters();
+onMounted(() => {
   retrieveEncounters();
   window.addEventListener("user-updated", onUserUpdated);
 });
 onUnmounted(() => {
+  if (filterClientSearchTimeout.value) clearTimeout(filterClientSearchTimeout.value);
   window.removeEventListener("user-updated", onUserUpdated);
 });
 </script>
@@ -104,17 +140,27 @@ onUnmounted(() => {
                 hide-details
               />
             </v-col>
-            <v-col cols="12" md="4">
-              <v-select
-                v-model="filterClientId"
-                :items="clientsForSelect"
-                item-title="displayName"
+            <v-col cols="12" md="5">
+              <v-autocomplete
+                v-model="filterClient"
+                :items="filterClientsWithLabel"
+                :loading="filterClientLoading"
+                item-title="displayLabel"
                 item-value="id"
-                label="Filter by Client"
+                return-object
+                label="Filter by client"
+                placeholder="Search by name or phone…"
                 clearable
+                hide-no-data
                 density="compact"
                 hide-details
-              />
+                no-filter
+                @update:search="onFilterClientSearchInput"
+              >
+                <template #selection>
+                  <span v-if="filterClient">{{ getClientLabel(filterClient) }}</span>
+                </template>
+              </v-autocomplete>
             </v-col>
             <v-col cols="12" md="2" class="d-flex align-center">
               <v-btn variant="outlined" size="small" @click="clearFilters">Clear filters</v-btn>
