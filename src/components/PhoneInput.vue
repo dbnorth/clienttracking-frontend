@@ -6,6 +6,7 @@ const props = defineProps({
   modelValue: { type: String, default: "" },
   label: { type: String, default: "Phone" },
   readonly: { type: Boolean, default: false },
+  disabled: { type: Boolean, default: false },
   required: { type: Boolean, default: false },
   density: { type: String, default: "compact" },
   hideDetails: { type: Boolean, default: false },
@@ -14,6 +15,7 @@ const props = defineProps({
 const emit = defineEmits(["update:modelValue"]);
 
 const rules = computed(() => {
+  if (props.disabled || props.readonly) return [];
   const r = [phoneRule];
   if (props.required) {
     r.unshift((v) => !!v?.trim() || "Phone is required");
@@ -33,9 +35,10 @@ const onInput = (v) => emit("update:modelValue", formatPhone(v));
     @update:model-value="onInput"
     :label="label"
     :readonly="readonly"
+    :disabled="disabled"
     :density="density"
     :hide-details="hideDetails"
-    :rules="readonly ? [] : rules"
+    :rules="readonly || disabled ? [] : rules"
     placeholder="(555) 555-5555"
     autocomplete="tel"
   />

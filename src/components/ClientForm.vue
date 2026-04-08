@@ -24,6 +24,8 @@ const props = defineProps({
   initialSituations: { type: Array, default: () => [] },
   benefits: { type: Array, default: () => [] },
   readOnly: { type: Boolean, default: false },
+  /** When true (add client): Current Status is disabled (mirrors Initial Situation). When false (edit): Initial Situation is disabled. */
+  isAddMode: { type: Boolean, default: false },
 });
 
 const emit = defineEmits(["update:modelValue"]);
@@ -53,6 +55,9 @@ const daytimeOtherRules = computed(() =>
     ? [(v) => !!String(v ?? "").trim() || "Description required when Other is selected"]
     : []
 );
+
+const initialSituationDisabled = computed(() => props.readOnly || !props.isAddMode);
+const currentStatusDisabled = computed(() => props.readOnly || props.isAddMode);
 
 const intakeLocationsWithLabel = computed(() =>
   props.intakeLocations.map((loc) => ({
@@ -506,8 +511,30 @@ defineExpose({ validate, focusFirstField });
       <div class="pa-4">
         <v-row>
           <v-col cols="12" md="6">
-            <v-select v-model="modelValue.initialSituationId" :items="initialSituations" item-title="value" item-value="id"
-              label="Initial Situation" clearable :readonly="readOnly" density="compact" />
+            <v-select
+              v-model="modelValue.initialSituationId"
+              :items="initialSituations"
+              item-title="value"
+              item-value="id"
+              label="Initial Situation"
+              clearable
+              :disabled="initialSituationDisabled"
+              :readonly="readOnly"
+              density="compact"
+            />
+          </v-col>
+          <v-col cols="12" md="6">
+            <v-select
+              v-model="modelValue.currentSituationId"
+              :items="initialSituations"
+              item-title="value"
+              item-value="id"
+              label="Current Status"
+              clearable
+              :disabled="currentStatusDisabled"
+              :readonly="readOnly"
+              density="compact"
+            />
           </v-col>
         </v-row>
         <v-row>
@@ -528,6 +555,17 @@ defineExpose({ validate, focusFirstField });
           <v-col cols="12" md="6">
             <v-select v-model="modelValue.benefits" :items="benefits" item-title="value" item-value="id"
               label="Benefits" multiple chips clearable :readonly="readOnly" density="compact" />
+          </v-col>
+        </v-row>
+        <v-row>
+          <v-col cols="12" md="6" class="d-flex align-center">
+            <v-checkbox
+              v-model="modelValue.currentlyTakingDrugs"
+              label="Currently taking drugs"
+              hide-details
+              density="compact"
+              :disabled="readOnly"
+            />
           </v-col>
         </v-row>
       </div>

@@ -228,6 +228,7 @@ onMounted(async () => {
             <div class="mb-2"><strong>Race:</strong> {{ lookupValue(races, client.raceId) }}</div>
             <div class="mb-2"><strong>Ethnicity:</strong> {{ lookupValue(ethnicities, client.ethnicityId) }}</div>
             <div class="mb-2"><strong>Initial Situation:</strong> {{ lookupValue(initialSituations, client.initialSituationId) }}</div>
+            <div class="mb-2"><strong>Current Status:</strong> {{ lookupValue(initialSituations, client.currentSituationId) }}</div>
           </div>
         </v-sheet>
         <v-sheet class="rounded-lg mb-4 pa-4" border>
@@ -245,6 +246,7 @@ onMounted(async () => {
           <div class="text-subtitle-1 mb-3 font-weight-medium">Situation</div>
           <div class="text-body-2">
             <div class="mb-2"><strong>Drugs of Choice:</strong> {{ drugsOfChoiceDisplay(client) }}</div>
+            <div class="mb-2"><strong>Currently taking drugs:</strong> {{ client.currentlyTakingDrugs ? 'Yes' : 'No' }}</div>
             <div class="mb-2"><strong>Benefits:</strong> {{ benefitsDisplay(client) }}</div>
           </div>
         </v-sheet>

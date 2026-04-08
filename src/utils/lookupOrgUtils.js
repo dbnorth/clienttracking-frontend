@@ -42,3 +42,11 @@ export function lookupQueryOpts(orgId) {
   }
   return {};
 }
+
+/** Client from API may include nested `intakeLocation.organizationId`. */
+export function organizationIdFromClientEmbedded(client) {
+  if (client?.intakeLocation?.organizationId != null && client.intakeLocation.organizationId !== "") {
+    return Number(client.intakeLocation.organizationId);
+  }
+  return organizationIdForClientRecordLookups(client, []);
+}

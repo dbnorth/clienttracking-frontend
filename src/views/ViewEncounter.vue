@@ -6,6 +6,7 @@ import EncounterServices from "../services/encounterServices";
 import ClientServiceServices from "../services/clientserviceServices";
 import LookupServices from "../services/lookupServices";
 import { getClientFullDisplayName } from "../utils/clientNameUtils.js";
+import { formatPhoneForDisplay } from "../utils/phoneUtils.js";
 
 const router = useRouter();
 const props = defineProps({
@@ -69,6 +70,21 @@ const editEncounter = () => {
 };
 const back = () => (props.embedded ? emit("close") : router.push({ name: "encounters" }));
 
+const showEncounterHousingAddress = computed(() => encounter.value?.housingLocation?.value === "Address");
+
+function formatEncounterHousingAddress(enc) {
+  if (!enc) return "–";
+  const street = String(enc.housingStreet ?? enc.client?.housingStreet ?? "").trim();
+  const apt = String(enc.housingApt ?? enc.client?.housingApt ?? "").trim();
+  const city = String(enc.housingCity ?? enc.client?.housingCity ?? "").trim();
+  const state = String(enc.housingState ?? enc.client?.housingState ?? "").trim();
+  const zip = String(enc.housingZip ?? enc.client?.housingZip ?? "").trim();
+  if (!street && !city && !zip) return "–";
+  const line1 = [street, apt].filter(Boolean).join(", ");
+  const line2 = [city, state, zip].filter(Boolean).join(" ");
+  return [line1, line2].filter(Boolean).join(" • ") || "–";
+}
+
 onMounted(async () => {
   loading.value = true;
   message.value = "";
@@ -117,7 +133,32 @@ onMounted(async () => {
             <strong>Time:</strong> {{ getTimeDisplay(encounter) }}
           </div>
           <div class="mt-2 text-body-2">
+            <strong>Phone:</strong> {{ formatPhoneForDisplay(encounter.phone || encounter.client?.phone) || "–" }}
+          </div>
+          <div class="mt-2 text-body-2">
             <strong>Encounter type:</strong> {{ encounter.encounterType?.value || "–" }}
+          </div>
+          <div class="mt-2 text-body-2">
+            <strong>Current Status:</strong> {{ encounter.currentSituation?.value || "–" }}
+          </div>
+          <div class="mt-2 text-body-2">
+            <strong>Currently taking drugs:</strong> {{ encounter.currentlyTakingDrugs ? "Yes" : "No" }}
+          </div>
+          <div class="mt-2 text-body-2">
+            <strong>Housing Type:</strong> {{ encounter.housingType?.value || "–" }}
+          </div>
+          <div class="mt-2 text-body-2">
+            <strong>Red/Green:</strong> {{ encounter.housingRedGreen || "–" }}
+          </div>
+          <div class="mt-2 text-body-2">
+            <strong>Housing Location:</strong> {{ encounter.housingLocation?.value || "–" }}
+          </div>
+          <div v-if="showEncounterHousingAddress" class="mt-2 text-body-2">
+            <strong>Housing address:</strong>
+            <div class="mt-1">{{ formatEncounterHousingAddress(encounter) }}</div>
+          </div>
+          <div class="mt-2 text-body-2">
+            <strong>Daytime Location:</strong> {{ encounter.daytimeLocation?.value || "–" }}
           </div>
           <div class="mt-2 text-body-2">
             <strong>Location:</strong> {{ getLocationDisplay(encounter.client?.intakeLocation) }}
