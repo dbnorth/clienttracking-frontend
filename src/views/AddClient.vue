@@ -70,6 +70,10 @@ const client = ref({
   housingZip: "",
   benefits: [],
   currentlyTakingDrugs: false,
+  childWelfareSystemCase: false,
+  fosterCareHistory: false,
+  juvenileJusticeHistory: false,
+  everInJailOrPrison: false,
   status: "Active",
   userId: user?.userId,
 });
@@ -87,6 +91,10 @@ const clearLookupSelections = () => {
   client.value.daytimeLocationId = null;
   client.value.benefits = [];
   client.value.currentlyTakingDrugs = false;
+  client.value.childWelfareSystemCase = false;
+  client.value.fosterCareHistory = false;
+  client.value.juvenileJusticeHistory = false;
+  client.value.everInJailOrPrison = false;
 };
 
 const reloadTypeLookups = async () => {

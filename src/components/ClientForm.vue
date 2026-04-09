@@ -568,6 +568,54 @@ defineExpose({ validate, focusFirstField });
             />
           </v-col>
         </v-row>
+        <v-row>
+          <v-col cols="12">
+            <v-checkbox
+              v-model="modelValue.childWelfareSystemCase"
+              label="Recent or current case with the child welfare system (anyone in household)"
+              hide-details
+              density="compact"
+              :disabled="readOnly"
+              class="text-wrap"
+            />
+          </v-col>
+        </v-row>
+        <v-row>
+          <v-col cols="12">
+            <v-checkbox
+              v-model="modelValue.fosterCareHistory"
+              label="History of involvement in foster care"
+              hide-details
+              density="compact"
+              :disabled="readOnly"
+              class="text-wrap"
+            />
+          </v-col>
+        </v-row>
+        <v-row>
+          <v-col cols="12">
+            <v-checkbox
+              v-model="modelValue.juvenileJusticeHistory"
+              label="History with juvenile justice system"
+              hide-details
+              density="compact"
+              :disabled="readOnly"
+              class="text-wrap"
+            />
+          </v-col>
+        </v-row>
+        <v-row>
+          <v-col cols="12">
+            <v-checkbox
+              v-model="modelValue.everInJailOrPrison"
+              label="Ever been in Jail/Prison"
+              hide-details
+              density="compact"
+              :disabled="readOnly"
+              class="text-wrap"
+            />
+          </v-col>
+        </v-row>
       </div>
     </v-sheet>
 

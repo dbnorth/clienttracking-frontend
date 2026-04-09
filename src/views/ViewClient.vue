@@ -248,6 +248,22 @@ onMounted(async () => {
             <div class="mb-2"><strong>Drugs of Choice:</strong> {{ drugsOfChoiceDisplay(client) }}</div>
             <div class="mb-2"><strong>Currently taking drugs:</strong> {{ client.currentlyTakingDrugs ? 'Yes' : 'No' }}</div>
             <div class="mb-2"><strong>Benefits:</strong> {{ benefitsDisplay(client) }}</div>
+            <div class="mb-2">
+              <strong>Recent or current case with the child welfare system (anyone in household):</strong>
+              {{ client.childWelfareSystemCase ? 'Yes' : 'No' }}
+            </div>
+            <div class="mb-2">
+              <strong>History of involvement in foster care:</strong>
+              {{ client.fosterCareHistory ? 'Yes' : 'No' }}
+            </div>
+            <div class="mb-2">
+              <strong>History with juvenile justice system:</strong>
+              {{ client.juvenileJusticeHistory ? 'Yes' : 'No' }}
+            </div>
+            <div class="mb-2">
+              <strong>Ever been in Jail/Prison:</strong>
+              {{ client.everInJailOrPrison ? 'Yes' : 'No' }}
+            </div>
           </div>
         </v-sheet>
         <v-sheet class="rounded-lg mb-4 pa-4" border>
