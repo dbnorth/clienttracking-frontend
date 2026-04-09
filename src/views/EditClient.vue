@@ -89,6 +89,10 @@ const retrieveClient = async () => {
       client.value.referralCaseWorker = client.value.organization.caseWorkerName || "";
       client.value.referralPhone = client.value.organization.phone || "";
     }
+    client.value.childWelfareSystemCase = !!client.value.childWelfareSystemCase;
+    client.value.fosterCareHistory = !!client.value.fosterCareHistory;
+    client.value.juvenileJusticeHistory = !!client.value.juvenileJusticeHistory;
+    client.value.everInJailOrPrison = !!client.value.everInJailOrPrison;
   } catch (e) {
     message.value = e.response?.data?.message || "Error loading client";
   }
