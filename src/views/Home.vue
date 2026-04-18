@@ -4,6 +4,9 @@ import { useRouter } from "vue-router";
 import Utils from "../config/utils.js";
 import LocationServices from "../services/locationServices.js";
 import OrganizationServices from "../services/organizationServices.js";
+import ClientServices from "../services/clientServices.js";
+import { getClientFullDisplayName } from "../utils/clientNameUtils.js";
+import { formatPhoneForDisplay } from "../utils/phoneUtils.js";
 
 const router = useRouter();
 const user = ref(Utils.getStore("user"));
@@ -74,6 +77,72 @@ const actions = [
 
 const goTo = (routeName) => router.push({ name: routeName });
 
+/** Home client lookup — same pattern as Encounters list “Filter by client”. */
+const homeClient = ref(null);
+const homeClientSearchResults = ref([]);
+const homeClientLoading = ref(false);
+const homeClientSearchInput = ref("");
+const homeClientSearchTimeout = ref(null);
+
+const getClientLabel = (c) => {
+  if (!c) return "";
+  const name = getClientFullDisplayName(c);
+  const phone = c.phone ? ` • ${formatPhoneForDisplay(c.phone)}` : "";
+  return `${name}${phone}`;
+};
+
+/** Keep selection visible when the search list is cleared. */
+const homeClientsWithLabel = computed(() => {
+  const base = homeClientSearchResults.value.map((c) => ({ ...c, displayLabel: getClientLabel(c) }));
+  const sel = homeClient.value;
+  if (!sel?.id) return base;
+  const sid = Number(sel.id);
+  if (base.some((x) => Number(x.id) === sid)) return base;
+  return [{ ...sel, displayLabel: getClientLabel(sel) }, ...base];
+});
+
+const searchHomeClients = (q) => {
+  if (homeClientSearchTimeout.value) clearTimeout(homeClientSearchTimeout.value);
+  homeClientSearchTimeout.value = setTimeout(async () => {
+    const query = (typeof q === "string" ? q : homeClientSearchInput.value)?.trim();
+    if (!query) {
+      homeClientSearchResults.value = [];
+      return;
+    }
+    homeClientLoading.value = true;
+    try {
+      const u = Utils.getStore("user");
+      const params = { ...Utils.getClientListQueryParams(u), name: query, phone: query };
+      const res = await ClientServices.getAll(params);
+      homeClientSearchResults.value = res.data || [];
+    } catch {
+      homeClientSearchResults.value = [];
+    } finally {
+      homeClientLoading.value = false;
+    }
+  }, 300);
+};
+
+const onHomeClientSearchInput = (v) => {
+  homeClientSearchInput.value = v;
+  searchHomeClients(v);
+};
+
+const selectedClientPhotoUrl = computed(() => {
+  const c = homeClient.value;
+  if (!c?.photoUrl) return null;
+  return ClientServices.getPhotoUrl(c.photoUrl);
+});
+
+const selectedClientDisplayName = computed(() => getClientFullDisplayName(homeClient.value));
+
+const selectedClientBirthDisplay = computed(() => Utils.formatDate(homeClient.value?.birthdate));
+
+const openSelectedClientProfile = () => {
+  const id = homeClient.value?.id;
+  if (id != null) router.push({ name: "viewClient", params: { id: String(id) } });
+};
+
 let nowInterval;
 onMounted(() => {
   nowDisplay.value = formatNow();
@@ -84,6 +153,7 @@ onMounted(() => {
 });
 onUnmounted(() => {
   if (nowInterval) clearInterval(nowInterval);
+  if (homeClientSearchTimeout.value) clearTimeout(homeClientSearchTimeout.value);
   window.removeEventListener("user-updated", refreshUser);
 });
 </script>
@@ -109,7 +179,63 @@ onUnmounted(() => {
           <v-alert v-if="hasNoAccess" type="warning" variant="tonal" class="mb-4 text-center">
             Admin must give you access to use this application.
           </v-alert>
-          <v-row v-else justify="center">
+          <div v-else class="mb-8 mx-auto" style="max-width: 560px">
+            <v-autocomplete
+              v-model="homeClient"
+              :items="homeClientsWithLabel"
+              :loading="homeClientLoading"
+              item-title="displayLabel"
+              item-value="id"
+              return-object
+              label="Find client"
+              placeholder="Search by name or phone…"
+              clearable
+              hide-no-data
+              density="compact"
+              hide-details
+              variant="outlined"
+              prepend-inner-icon="mdi-magnify"
+              no-filter
+              @update:search="onHomeClientSearchInput"
+            >
+              <template #selection>
+                <span v-if="homeClient">{{ getClientLabel(homeClient) }}</span>
+              </template>
+            </v-autocomplete>
+
+            <v-card
+              v-if="homeClient"
+              class="mt-4 pa-4 text-left"
+              variant="tonal"
+              rounded="lg"
+            >
+              <div class="d-flex flex-column flex-sm-row align-center gap-4">
+                <v-avatar size="120" rounded="lg">
+                  <v-img v-if="selectedClientPhotoUrl" :src="selectedClientPhotoUrl" cover alt="Client photo" />
+                  <v-icon v-else size="64" color="medium-emphasis">mdi-account</v-icon>
+                </v-avatar>
+                <div class="flex-grow-1 text-center text-sm-start">
+                  <div class="text-h6 font-weight-bold">{{ selectedClientDisplayName }}</div>
+                  <div class="text-body-1 text-medium-emphasis mt-1">
+                    Date of birth: {{ selectedClientBirthDisplay }}
+                  </div>
+                  <div v-if="homeClient.phone" class="text-body-2 mt-1">
+                    {{ formatPhoneForDisplay(homeClient.phone) }}
+                  </div>
+                  <v-btn
+                    class="mt-3"
+                    color="primary"
+                    variant="text"
+                    prepend-icon="mdi-account-details"
+                    @click="openSelectedClientProfile"
+                  >
+                    Open full profile
+                  </v-btn>
+                </div>
+              </div>
+            </v-card>
+          </div>
+          <v-row v-if="!hasNoAccess" justify="center">
             <v-col v-for="action in actions" :key="action.name" cols="12" sm="6" md="4" >
               <v-card
                 color="primary"
