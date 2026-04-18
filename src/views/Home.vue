@@ -162,9 +162,9 @@ onUnmounted(() => {
   <div class="home-page">
     <v-container class="fill-height">
       <v-row justify="center" align="center">
-        <v-col cols="12" class="text-center mb-8">
+        <v-col cols="12" class="text-center mb-3">
           <h1 class="text-h3 font-weight-bold mb-2">{{ greeting }}</h1>
-          <div v-if="orgLogoUrl" class="d-flex justify-center mb-4">
+          <div v-if="orgLogoUrl" class="d-flex justify-center mb-2">
             <img
               :src="orgLogoUrl"
               alt="Organization logo"
@@ -172,10 +172,9 @@ onUnmounted(() => {
             />
           </div>
           <p v-if="locationDisplay" class="text-h5 text-medium-emphasis mb-1">You are serving at {{ locationDisplay }} today.</p>
-          <p v-if="!hasNoAccess" class="text-h5 text-medium-emphasis">What would you like to do?</p>
         </v-col>
         <v-col cols="12" md="10" lg="8">
-          <div class="text-h5 text-center mt-2 mb-4">{{ nowDisplay }}</div>
+          <div class="text-h5 text-center mt-0 mb-2">{{ nowDisplay }}</div>
           <v-alert v-if="hasNoAccess" type="warning" variant="tonal" class="mb-4 text-center">
             Admin must give you access to use this application.
           </v-alert>

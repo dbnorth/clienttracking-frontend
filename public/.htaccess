@@ -1,3 +1,14 @@
+# After deploy, browsers must re-fetch index.html so they load the new hashed JS/CSS.
+# Otherwise you can see a mix: new HTML briefly, then an old cached bundle (wrong layout).
+<IfModule mod_headers.c>
+  <Files "index.html">
+    Header set Cache-Control "max-age=0, must-revalidate, no-cache"
+  </Files>
+  <FilesMatch "\.(js|mjs|css|woff2?|ttf|eot|ico)$">
+    Header set Cache-Control "public, max-age=31536000, immutable"
+  </FilesMatch>
+</IfModule>
+
 <IfModule mod_negotiation.c>
   Options -MultiViews
 </IfModule>
