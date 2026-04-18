@@ -209,11 +209,13 @@ onUnmounted(() => {
               variant="tonal"
               rounded="lg"
             >
-              <div class="d-flex flex-column flex-sm-row align-center gap-4">
-                <v-avatar size="120" rounded="lg">
-                  <v-img v-if="selectedClientPhotoUrl" :src="selectedClientPhotoUrl" cover alt="Client photo" />
-                  <v-icon v-else size="64" color="medium-emphasis">mdi-account</v-icon>
-                </v-avatar>
+              <div class="d-flex flex-column flex-sm-row align-center home-client-detail">
+                <div class="flex-shrink-0 home-client-detail__photo">
+                  <v-avatar size="120" rounded="lg">
+                    <v-img v-if="selectedClientPhotoUrl" :src="selectedClientPhotoUrl" cover alt="Client photo" />
+                    <v-icon v-else size="64" color="medium-emphasis">mdi-account</v-icon>
+                  </v-avatar>
+                </div>
                 <div class="flex-grow-1 text-center text-sm-start">
                   <div class="text-h6 font-weight-bold">{{ selectedClientDisplayName }}</div>
                   <div class="text-body-1 text-medium-emphasis mt-1">
@@ -274,5 +276,18 @@ onUnmounted(() => {
 .home-action-card:hover {
   transform: translateY(-4px);
   box-shadow: 0 12px 24px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* Extra space between client photo and details (stacked and side-by-side). */
+.home-client-detail {
+  gap: 1.75rem;
+}
+@media (min-width: 600px) {
+  .home-client-detail {
+    gap: 2.5rem;
+  }
+  .home-client-detail__photo {
+    margin-inline-end: 0.5rem;
+  }
 }
 </style>
