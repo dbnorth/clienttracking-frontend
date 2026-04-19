@@ -1,10 +1,11 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from "vue";
+import { ref, computed, watch, onMounted, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
 import Utils from "../config/utils.js";
 import LocationServices from "../services/locationServices.js";
 import OrganizationServices from "../services/organizationServices.js";
 import ClientServices from "../services/clientServices.js";
+import EncounterServices from "../services/encounterServices.js";
 import { getClientFullDisplayName } from "../utils/clientNameUtils.js";
 import { formatPhoneForDisplay } from "../utils/phoneUtils.js";
 
@@ -75,7 +76,13 @@ const actions = [
   { name: "addEncounter", label: "Add Encounter", icon: "mdi-hand-heart", subtitle: "Record services requested or provided" },
 ];
 
-const goTo = (routeName) => router.push({ name: routeName });
+const goTo = (routeName) => {
+  if (routeName === "addEncounter" && homeClient.value?.id != null) {
+    router.push({ name: "addEncounter", query: { clientId: String(homeClient.value.id) } });
+    return;
+  }
+  router.push({ name: routeName });
+};
 
 /** Home client lookup — same pattern as Encounters list “Filter by client”. */
 const homeClient = ref(null);
@@ -137,6 +144,45 @@ const selectedClientPhotoUrl = computed(() => {
 const selectedClientDisplayName = computed(() => getClientFullDisplayName(homeClient.value));
 
 const selectedClientBirthDisplay = computed(() => Utils.formatDate(homeClient.value?.birthdate));
+
+const lastEncounterLoading = ref(false);
+const lastEncounterDisplay = ref("");
+let lastEncounterFetchSeq = 0;
+
+watch(
+  () => homeClient.value?.id,
+  async (id) => {
+    lastEncounterDisplay.value = "";
+    if (id == null || id === "") {
+      lastEncounterLoading.value = false;
+      return;
+    }
+    const seq = ++lastEncounterFetchSeq;
+    lastEncounterLoading.value = true;
+    try {
+      const params = {
+        clientId: Number(id),
+        ...Utils.getClientListQueryParams(Utils.getStore("user")),
+      };
+      const res = await EncounterServices.getAll(params);
+      if (seq !== lastEncounterFetchSeq) return;
+      const rows = Array.isArray(res.data) ? res.data : [];
+      const latest = rows[0];
+      if (latest?.date) {
+        const iso = String(latest.date).slice(0, 10);
+        lastEncounterDisplay.value = Utils.formatDate(iso);
+      } else {
+        lastEncounterDisplay.value = "No encounter";
+      }
+    } catch {
+      if (seq !== lastEncounterFetchSeq) return;
+      lastEncounterDisplay.value = "—";
+    } finally {
+      if (seq === lastEncounterFetchSeq) lastEncounterLoading.value = false;
+    }
+  },
+  { immediate: true }
+);
 
 const openSelectedClientProfile = () => {
   const id = homeClient.value?.id;
@@ -219,6 +265,11 @@ onUnmounted(() => {
                   <div class="text-h6 font-weight-bold">{{ selectedClientDisplayName }}</div>
                   <div class="text-body-1 text-medium-emphasis mt-1">
                     Date of birth: {{ selectedClientBirthDisplay }}
+                  </div>
+                  <div class="text-body-1 text-medium-emphasis mt-1">
+                    Last encounter:
+                    <template v-if="lastEncounterLoading">…</template>
+                    <template v-else>{{ lastEncounterDisplay }}</template>
                   </div>
                   <div v-if="homeClient.phone" class="text-body-2 mt-1">
                     {{ formatPhoneForDisplay(homeClient.phone) }}
