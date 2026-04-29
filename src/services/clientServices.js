@@ -1,7 +1,7 @@
 import apiClient from "./services.js";
 import Utils from "../config/utils.js";
 
-const getBaseUrl = () => (import.meta.env.DEV ? "http://localhost:3200/clienttracking/" : "/clienttracking/");
+const getBaseUrl = () => (import.meta.env.DEV ? "http://localhost:3129/workerscheduling-t9/" : "/workerscheduling-t9/");
 
 export default {
   getAll(params = {}) {
